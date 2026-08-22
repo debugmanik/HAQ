@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FAF9F5;
+  --foreground: #1C1C1C;
+  
+  --primary-navy: #122438;
+  --primary-navy-hover: #1E3752;
+  --border-stone: #E5E3DC;
+  --text-muted: #5A6570;
+  --paper-white: #FFFFFF;
+  --accent-light: #ECEFF3;
+  
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  
+  --color-navy: var(--primary-navy);
+  --color-navy-hover: var(--primary-navy-hover);
+  --color-stone-border: var(--border-stone);
+  --color-slate-muted: var(--text-muted);
+  --color-paper: var(--paper-white);
+  --color-navy-light: var(--accent-light);
+  
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Custom focus states and base styling */
+input, textarea, select {
+  outline: none;
+}
+
+::selection {
+  background-color: var(--accent-light);
+  color: var(--primary-navy);
 }
