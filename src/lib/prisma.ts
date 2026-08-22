@@ -12,12 +12,14 @@ let prisma: PrismaClient;
 
 if (typeof window === 'undefined') {
   if (process.env.NODE_ENV === 'production') {
-    const pool = new Pool({ connectionString: process.env.PRISMA_DATABASE_URL });
+    const connectionString = process.env.PRISMA_DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
     prisma = new PrismaClient({ adapter });
   } else {
     if (!globalForPrisma.prisma) {
-      const pool = new Pool({ connectionString: process.env.PRISMA_DATABASE_URL });
+      const connectionString = process.env.PRISMA_DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+      const pool = new Pool({ connectionString });
       const adapter = new PrismaPg(pool);
       globalForPrisma.prisma = new PrismaClient({ adapter });
     }
