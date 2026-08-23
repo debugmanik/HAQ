@@ -28,10 +28,11 @@
 ```
 
 ### 1. 🤖 Flagship HAQ AI Legal Assistant (`/assistant`)
-- Multi-turn conversational AI specialized in Indian legal reasoning powered by `@google/genai` (Gemini).
-- **Dynamic Legal Schema Extraction**: Dynamically identifies issue categories (*Administrative Delays, PoSH / Workplace Harassment, Tenant Deposit Disputes, Civic Complaints*).
+- **Multi-Turn Case Interviewer**: Replaces generic chatbot UI with a **Compact Case Interview UI** featuring a collapsible history container and focused active-question card.
+- **Deterministic State Engine**: Employs a strict schema-driven backend that dictates the exact questions asked, fully preventing AI hallucination or repetitive loops. 
 - **Evidence Readiness Score**: Calculates a real-time 0–100% evidentiary readiness score as the citizen provides details.
 - **Action Roadmap**: Generates sequential escalation steps with responsible authorities and official grievance portals (CPGRAMS, NCH 1915, Cyber Helpline 1930).
+- **Multi-Model Resilience (Failover)**: Implements automatic, silent model fallback routing (e.g. from `gemini-3.6-flash` to `gemini-3.1-flash-lite`) to bypass 429 quota and 503 load errors, ensuring 100% uptime on the free tier.
 
 ### 2. 📄 Legal Document Studio & AI Enhancer (`/documents`)
 - **Template Library**: 6 standardized Indian legal templates:
@@ -92,7 +93,7 @@ In compliance with HAQ's trust-focused, high-accessibility design principles:
 | **Language & Runtime** | [TypeScript 5](https://www.typescriptlang.org/), [React 19](https://react.dev/) |
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) (CSS variables & @theme) |
 | **Database & ORM** | [Prisma 7.9](https://www.prisma.io/) with PostgreSQL & `@prisma/adapter-pg` |
-| **AI Intelligence** | Google GenAI SDK (`@google/genai`) with Gemini 2.5 / 3.0 |
+| **AI Intelligence** | Google GenAI SDK (`@google/genai`) with Gemini 3.6 Flash & 3.1 Flash Lite (with Failover) |
 | **UI Primitives** | Radix UI (`@radix-ui/react-dialog`, `@radix-ui/react-slot`), Lucide React |
 
 ---
