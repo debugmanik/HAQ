@@ -29,7 +29,7 @@ If yes, provide a concise, supportive response asking if they are safe and advis
 
   try {
     const dangerRes = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: dangerPrompt,
       config: { responseMimeType: "application/json", responseSchema: dangerSchema, temperature: 0.1 }
     });
@@ -76,7 +76,7 @@ User message: "${userMessage}"
 
     try {
       const catRes = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: categoryPrompt,
         config: { responseMimeType: "application/json", responseSchema: categorySchema, temperature: 0.1 }
       });

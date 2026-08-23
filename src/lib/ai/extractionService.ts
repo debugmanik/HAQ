@@ -51,7 +51,7 @@ Output as JSON.
 
   try {
     const res = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: extractionPrompt,
       config: { responseMimeType: "application/json", responseSchema: extractionSchema, temperature: 0.1 }
     });
