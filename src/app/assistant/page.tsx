@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, AlertCircle, CheckCircle2, ChevronRight, FileText, ArrowLeft, Loader2, Info, ArrowRightCircle, XCircle, HelpCircle } from "lucide-react";
+import { Send, AlertCircle, CheckCircle2, ChevronRight, FileText, ArrowLeft, Loader2, Info, ArrowRightCircle, XCircle, HelpCircle, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -35,6 +35,7 @@ export default function AssistantPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [caseState, setCaseState] = useState<CaseState | null>(null);
   const [eliteState, setEliteState] = useState<EliteCaseState | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -82,9 +83,14 @@ export default function AssistantPage() {
   };
 
   const isReady = caseState?.status === "ready";
+  
+  const lastAssistantIndex = messages.findLastIndex(m => m.role === "assistant");
+  const splitIndex = lastAssistantIndex >= 0 ? lastAssistantIndex : 0;
+  const pastMessages = messages.slice(0, splitIndex);
+  const currentMessages = messages.slice(splitIndex);
 
   return (
-    <div className="flex flex-col md:flex-row w-full max-w-7xl mx-auto min-h-[calc(100dvh-4rem)] bg-background">
+    <div className="flex flex-col md:flex-row w-full max-w-7xl mx-auto h-[calc(100dvh-4rem)] bg-background overflow-hidden">
       {/* Left Panel: The Interviewer (Chat) */}
       <div className="w-full md:w-1/2 flex flex-col border-r border-stone-border">
         {/* Header */}
@@ -98,28 +104,71 @@ export default function AssistantPage() {
           </div>
         </div>
 
-        {/* Chat Feed */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-paper/50">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === "user" 
-                  ? "bg-navy text-white rounded-br-sm" 
-                  : "bg-white border border-stone-border text-foreground shadow-xs rounded-bl-sm"
-              }`}>
-                {msg.content}
-              </div>
+        {/* Chat Feed / Interview Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col relative">
+          
+          {/* History Toggle */}
+          {pastMessages.length > 0 && (
+            <div className="flex justify-center mb-6 pt-2 shrink-0">
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className="text-xs text-slate-500 hover:text-navy font-medium bg-white border border-stone-border px-4 py-1.5 rounded-full shadow-sm transition-all flex items-center gap-2"
+              >
+                <History className="h-3.5 w-3.5" />
+                {showHistory ? "Hide Previous Context" : `View Previous Context (${pastMessages.length})`}
+              </button>
             </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-stone-border rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-slate-muted" />
-                <span className="text-xs text-slate-muted">Analyzing case...</span>
+          )}
+
+          {/* Past Messages Container */}
+          {showHistory && pastMessages.length > 0 && (
+            <div className="space-y-4 mb-8 opacity-60 hover:opacity-100 transition-opacity duration-300">
+              {pastMessages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
+                    msg.role === "user" 
+                      ? "bg-navy/80 text-white rounded-br-sm" 
+                      : "bg-white/80 border border-stone-border/60 text-slate-700 rounded-bl-sm"
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 py-2">
+                <div className="h-px bg-stone-border/60 flex-1" />
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Current Question</span>
+                <div className="h-px bg-stone-border/60 flex-1" />
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
+
+          {/* Spacer to push current question down if history is hidden, making it feel like a focused card */}
+          {!showHistory && <div className="flex-1" />}
+
+          {/* Current Question */}
+          <div className="mt-auto space-y-6 shrink-0">
+            {currentMessages.map((msg) => (
+              <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                <div className={`max-w-[90%] rounded-2xl px-5 py-4 text-[15px] leading-relaxed shadow-sm ${
+                  msg.role === "user" 
+                    ? "bg-navy text-white rounded-br-sm" 
+                    : "bg-white border border-navy/10 text-foreground shadow-md rounded-bl-sm ring-1 ring-navy/5"
+                }`}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start animate-in fade-in duration-300">
+                <div className="bg-white border border-stone-border rounded-2xl rounded-bl-sm px-5 py-4 flex items-center gap-3 shadow-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-navy" />
+                  <span className="text-sm font-medium text-slate-600">Analyzing case...</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} className="h-1" />
+          </div>
         </div>
 
         {/* Input Box */}
