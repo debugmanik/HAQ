@@ -32,7 +32,7 @@
 - **Deterministic State Engine**: Employs a strict schema-driven backend that dictates the exact questions asked, fully preventing AI hallucination or repetitive loops. 
 - **Evidence Readiness Score**: Calculates a real-time 0–100% evidentiary readiness score as the citizen provides details.
 - **Action Roadmap**: Generates sequential escalation steps with responsible authorities and official grievance portals (CPGRAMS, NCH 1915, Cyber Helpline 1930).
-- **Multi-Model Resilience (Failover)**: Implements automatic, silent model fallback routing (e.g. from `grok-2-latest` to `grok-beta`) to bypass rate limits and load errors, ensuring 100% uptime.
+- **Multi-Model Resilience (Failover)**: Implements automatic, silent model fallback routing (e.g. from `gemini-3.6-flash` to `gemini-3.1-flash-lite`) to bypass 429 quota and 503 load errors, ensuring 100% uptime on the free tier.
 
 ### 2. 📄 Legal Document Studio & AI Enhancer (`/documents`)
 - **Template Library**: 6 standardized Indian legal templates:
@@ -42,7 +42,7 @@
   4. *Cybercrime Financial Fraud Bank Representation under RBI Circular*
   5. *Workplace Salary & Full and Final (FnF) Grievance Notice*
   6. *General Breach of Contract Notice under Indian Contract Act 1872*
-- **AI Document Polisher**: Paste raw, informal dispute notes and let Grok transform them into an authoritative legal demand notice with statutory citations and a strict 15-day compliance window.
+- **AI Document Polisher**: Paste raw, informal dispute notes and let Gemini transform them into an authoritative legal demand notice with statutory citations and a strict 15-day compliance window.
 - **Print & Export**: Print-ready Georgia legal serif A4 layout, `.txt` download, and clipboard copy.
 
 ### 3. 📚 Know Your Rights (KYR) Knowledge Base (`/kyr`)
@@ -93,14 +93,14 @@ In compliance with HAQ's trust-focused, high-accessibility design principles:
 | **Language & Runtime** | [TypeScript 5](https://www.typescriptlang.org/), [React 19](https://react.dev/) |
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) (CSS variables & @theme) |
 | **Database & ORM** | [Prisma 7.9](https://www.prisma.io/) with PostgreSQL & `@prisma/adapter-pg` |
-| **AI Intelligence** | OpenAI Node SDK (`openai`) with xAI Grok (grok-2-latest) |
+| **AI Intelligence** | Google GenAI SDK (`@google/genai`) with Gemini 3.6 Flash & 3.1 Flash Lite (with Failover) |
 | **UI Primitives** | Radix UI (`@radix-ui/react-dialog`, `@radix-ui/react-slot`), Lucide React |
 
 ---
 
 ## 📂 Project Directory Structure
 
-\`\`\`
+```
 haq/
 ├── prisma/
 │   ├── schema.prisma             # Extended Prisma schema (KYR, Lawyers, Bookings, Drafts, Stories, AiCase)
@@ -108,8 +108,8 @@ haq/
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── assistant/chat/   # Multi-turn Grok AI Assistant with dynamic schema
-│   │   │   ├── documents/enhance/# Grok Document Polisher endpoint
+│   │   │   ├── assistant/chat/   # Multi-turn Gemini AI Assistant with dynamic schema
+│   │   │   ├── documents/enhance/# AI Document Polisher endpoint
 │   │   │   ├── kyr/              # Know Your Rights search & category API
 │   │   │   ├── lawyers/          # Lawyer directory & consultation booking API
 │   │   │   ├── stories/          # Case stories listing & submission API
@@ -147,7 +147,7 @@ haq/
 │       └── store.tsx             # Multi-step state management context
 ├── package.json
 └── README.md
-\`\`\`
+```
 
 ---
 
@@ -158,36 +158,36 @@ haq/
 - [PostgreSQL](https://www.postgresql.org/) database (optional; offline fallbacks are included)
 
 ### 2. Install Dependencies
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 ### 3. Configure Environment Variables
-Create a \`.env\` or \`.env.local\` file in the root directory:
-\`\`\`env
-# xAI Grok API Key (Get from https://console.x.ai/)
-GROK_API_KEY=your_grok_api_key_here
+Create a `.env` or `.env.local` file in the root directory:
+```env
+# Google Gemini AI API Key (Get from https://aistudio.google.com/)
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # PostgreSQL Connection String (Optional / Supabase / Neon / Local)
 DATABASE_URL=postgresql://postgres:password@localhost:5432/haq
-\`\`\`
+```
 
 ### 4. Generate Prisma Client
-\`\`\`bash
+```bash
 npx prisma generate
-\`\`\`
+```
 
 ### 5. Run the Development Server
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### 6. Production Build & Linting
-\`\`\`bash
+```bash
 npm run build
 npm run lint
-\`\`\`
+```
 
 ---
 
@@ -197,7 +197,7 @@ npm run lint
 2. **HAQ AI Assistant (`/assistant`)**: Describe a complex dispute (e.g. landlord withheld deposit or workplace salary delay). Watch the AI calculate the evidence readiness score, extract parties and monetary claims, and build a sequential action roadmap.
 3. **Legal Document Studio (`/documents`)**:
    - Select the *Consumer Demand Notice* or *RTI 6(1)* template, fill the dynamic variables, and click **Print A4 / PDF**.
-   - Switch to **AI Document Polisher**, paste raw dispute notes, and watch Grok generate a complete formal legal notice with statutory clauses.
+   - Switch to **AI Document Polisher**, paste raw dispute notes, and watch Gemini generate a complete formal legal notice with statutory clauses.
 4. **Know Your Rights (`/kyr`)**: Search for `"FIR"`, `"deposit"`, or `"cyber"`. Open an article to view statutory citations, landmark judgments, and step-by-step action checklists. Click **Bookmark**.
 5. **Advocate Directory (`/lawyers`)**: Filter by city (*Bengaluru*, *Delhi*, *Mumbai*) and specialization (*Tenancy*, *Cybercrime*, *Consumer*). Click **Book Consultation** to schedule an appointment.
 6. **Citizen Dashboard (`/dashboard`)**: View all your active AI inquiries, saved document drafts, advocate consultation bookings, and bookmarked guides in one place.

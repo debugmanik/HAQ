@@ -1,9 +1,9 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-const apiKey = process.env.GROK_API_KEY || process.env.OPENAI_API_KEY;
-const ai = new OpenAI({ apiKey, baseURL: "https://api.x.ai/v1" });
+const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+const ai = new GoogleGenAI({ apiKey });
 
 import { processCaseStateSinglePass } from "../src/lib/ai/stateEngineService";
 import { INITIAL_ELITE_STATE, EliteCaseState } from "../src/lib/ai/types";
