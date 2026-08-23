@@ -3,12 +3,9 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { GoogleGenAI } from "@google/genai";
 import { EliteCaseState, INITIAL_ELITE_STATE } from "@/lib/ai/types";
-import { detectIntentAndDanger } from "@/lib/ai/intentService";
-import { extractFacts } from "@/lib/ai/extractionService";
-import { generateAdvisory } from "@/lib/ai/advisoryService";
-import { generateNextQuestion } from "@/lib/ai/questionService";
+import { processCaseStateSinglePass } from "@/lib/ai/stateEngineService";
 
-export const maxDuration = 60; // Increase Vercel timeout to 60s
+export const maxDuration = 60; // Just in case, though it should be fast now
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey });
@@ -52,87 +49,38 @@ export async function POST(request: Request) {
 
     let currentState = (aiCase.extractedData || INITIAL_ELITE_STATE) as EliteCaseState;
 
-    // STEP 1: Intent & Safety Override
-    const intentResult = await detectIntentAndDanger(ai, message, currentState);
-    currentState.category = intentResult.category;
-    currentState.subCategory = intentResult.subCategory;
-    currentState.summary = intentResult.summary;
-
-    let aiResponseText = "Could you provide more details?";
-
-    if (!intentResult.isImmediateDanger && currentState.category && currentState.category !== "General Inquiry") {
-      // STEP 2: Fact Extraction (Memory)
-      const extractionResult = await extractFacts(ai, message, currentState);
-      
-      // Merge new facts
-      currentState.facts = { ...currentState.facts, ...extractionResult.newFacts };
-      
-      // Merge evidence
-      const newEvidence = extractionResult.evidenceReady.filter(e => !currentState.evidenceReady.includes(e));
-      currentState.evidenceReady = [...currentState.evidenceReady, ...newEvidence];
-      
-      // Update missing info
-      currentState.missingInformation = extractionResult.missingInformation;
-
-      // STEP 3 & 4 IN PARALLEL: Advisory & Next Question
-      const [advisoryResult, nextQuestion] = await Promise.all([
-        generateAdvisory(ai, currentState),
-        generateNextQuestion(ai, message, currentState, intentResult.isImmediateDanger, intentResult.dangerResponse)
-      ]);
-
-      // Apply Advisory
-      currentState.rights = advisoryResult.rights;
-      currentState.roadmap = advisoryResult.roadmap;
-      currentState.nextAction = advisoryResult.nextAction;
-      currentState.confidence = advisoryResult.confidence;
-      
-      if (advisoryResult.isReadyForAction) {
-        currentState.currentStep = "ready_for_action";
-      } else {
-        currentState.currentStep = "gathering_facts";
-      }
-
-      aiResponseText = nextQuestion;
-    } else {
-      // If it's a general inquiry or danger, just get the question response
-      aiResponseText = await generateNextQuestion(
-        ai, 
-        message, 
-        currentState, 
-        intentResult.isImmediateDanger, 
-        intentResult.dangerResponse
-      );
-    }
+    // SINGLE-PASS STATE ENGINE: Merges Intent, Extraction, Advisory, and Question Generation
+    const { state: updatedEliteState, responseText } = await processCaseStateSinglePass(ai, message, currentState);
 
     // Determine readiness score
     let readinessScore = 0;
-    if (currentState.category && currentState.category !== "General Inquiry") {
-      const knownCount = Object.keys(currentState.facts).length;
-      const totalCount = knownCount + currentState.missingInformation.length;
+    if (updatedEliteState.category && updatedEliteState.category !== "General Inquiry") {
+      const knownCount = Object.keys(updatedEliteState.facts).length;
+      const totalCount = knownCount + updatedEliteState.missingInformation.length;
       readinessScore = totalCount > 0 ? Math.floor((knownCount / totalCount) * 100) : 10;
-      if (currentState.currentStep === "ready_for_action") readinessScore = 100;
+      if (updatedEliteState.currentStep === "ready_for_action") readinessScore = 100;
     }
 
     // Save state
     const updatedCase = await prisma.aiCase.update({
       where: { id: aiCase.id },
       data: {
-        category: currentState.category,
-        extractedData: currentState as any,
+        category: updatedEliteState.category,
+        extractedData: updatedEliteState as any,
         readinessScore,
-        status: currentState.currentStep === "ready_for_action" ? "ready" : "gathering_context"
+        status: updatedEliteState.currentStep === "ready_for_action" ? "ready" : "gathering_context"
       }
     });
 
     // Save assistant message
     const savedMsg = await prisma.aiCaseMessage.create({
-      data: { aiCaseId: aiCase.id, role: "assistant", content: aiResponseText }
+      data: { aiCaseId: aiCase.id, role: "assistant", content: responseText }
     });
 
     return NextResponse.json({
       caseState: updatedCase,
       message: savedMsg,
-      eliteState: currentState // Pass the strongly-typed state directly for UI ease
+      eliteState: updatedEliteState
     });
 
   } catch (error: any) {
