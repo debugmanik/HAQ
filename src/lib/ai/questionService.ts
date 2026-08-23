@@ -41,7 +41,7 @@ Generate the exact response text to display to the user.
 
   try {
     const res = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3.6-flash",
       contents: genPrompt,
       config: { temperature: 0.7 }
     });
