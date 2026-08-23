@@ -84,6 +84,22 @@ export const SCHEMAS: Record<string, DynamicSchema> = {
       sourceUrl: "https://consumerhelpline.gov.in"
     }
   },
+  SEXUAL_HARASSMENT_ABUSE: {
+    key: "SEXUAL_HARASSMENT_ABUSE",
+    category: "Women's Safety & Criminal Law",
+    requiredFields: [
+      { key: "incidentLocation", label: "Where did the incident occur? (e.g., Workplace, Public, Home)", type: "string" },
+      { key: "dateOfIncident", label: "Approximate Date of the Incident", type: "string" },
+      { key: "policeComplaintFiled", label: "Have you filed a police complaint (FIR)?", type: "boolean" },
+      { key: "safetyStatus", label: "Are you currently in a safe location?", type: "boolean" }
+    ],
+    rightsNavigator: {
+      title: "POSH Act & Criminal Law",
+      description: "Under the POSH Act (2013), all workplaces must have an Internal Complaints Committee (ICC). For public or domestic incidents, Sections 354 and 498A of the IPC apply. You have the right to file a Zero FIR at any police station regardless of jurisdiction.",
+      sourceName: "National Commission for Women (NCW)",
+      sourceUrl: "https://ncwapps.nic.in"
+    }
+  },
   GENERAL: {
     key: "GENERAL",
     category: "General Inquiry",
