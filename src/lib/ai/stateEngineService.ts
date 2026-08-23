@@ -116,7 +116,7 @@ Output strictly as JSON matching the schema.
 
   try {
     const res = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+      model: "gemini-3.5-flash",
       contents: megaPrompt,
       config: { responseMimeType: "application/json", responseSchema: megaSchema, temperature: 0.1 }
     });
