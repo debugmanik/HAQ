@@ -143,10 +143,10 @@ export default function AssistantPage() {
           )}
 
           {/* Spacer to push current question down if history is hidden, making it feel like a focused card */}
-          {!showHistory && <div className="flex-1" />}
+          {!showHistory && <div className="flex-1 min-h-0" />}
 
           {/* Current Question */}
-          <div className="mt-auto space-y-6 shrink-0">
+          <div className="space-y-6 shrink-0">
             {currentMessages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                 <div className={`max-w-[90%] rounded-2xl px-5 py-4 text-[15px] leading-relaxed shadow-sm ${
