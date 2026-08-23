@@ -117,18 +117,32 @@ Output strictly as JSON matching the schema.
     }
   };
 
-  try {
-    const res = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: megaPrompt,
-      config: { responseMimeType: "application/json", responseSchema: megaSchema, temperature: 0.1 }
-    });
+  const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-flash-lite"];
+  let res: any = null;
+  let errorMsg = "Unknown error";
 
-    if (res.text) {
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[StateEngine] Trying model: ${modelName}`);
+      res = await ai.models.generateContent({
+        model: modelName,
+        contents: megaPrompt,
+        config: { responseMimeType: "application/json", responseSchema: megaSchema, temperature: 0.1 }
+      });
+      if (res && res.text) break;
+    } catch (e: any) {
+      console.warn(`[StateEngine] Model ${modelName} failed:`, e.message);
+      errorMsg = e.message;
+      // Continue to next model
+    }
+  }
+
+  try {
+    if (res && res.text) {
       let cleanText = res.text;
-      if (cleanText.startsWith("\`\`\`json")) cleanText = cleanText.substring(7);
-      if (cleanText.startsWith("\`\`\`")) cleanText = cleanText.substring(3);
-      if (cleanText.endsWith("\`\`\`")) cleanText = cleanText.substring(0, cleanText.length - 3);
+      if (cleanText.startsWith("```json")) cleanText = cleanText.substring(7);
+      if (cleanText.startsWith("```")) cleanText = cleanText.substring(3);
+      if (cleanText.endsWith("```")) cleanText = cleanText.substring(0, cleanText.length - 3);
       cleanText = cleanText.trim();
 
       const parsed = JSON.parse(cleanText);
@@ -226,16 +240,16 @@ Output strictly as JSON matching the schema.
       };
     }
   } catch (e: any) {
-    console.error("State Engine failed", e);
+    console.error("State Engine parsing failed", e);
     return {
       state: currentState,
-      responseText: `I'm having trouble analyzing that right now. (Debug Error: ${e.message})`
+      responseText: `I'm having trouble analyzing that right now. (Parsing Error: ${e.message})`
     };
   }
 
   // Fallback
   return {
     state: currentState,
-    responseText: "I'm having trouble analyzing that right now. Could you provide a bit more detail?"
+    responseText: `I'm having trouble analyzing that right now. (API Error: ${errorMsg})`
   };
 }
