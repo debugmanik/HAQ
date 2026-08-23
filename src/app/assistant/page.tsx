@@ -21,18 +21,29 @@ type CaseState = {
   extractedData: Record<string, any>;
 };
 
+type SchemaDetails = {
+  categoryLabel: string;
+  rightsNavigator: {
+    title: string;
+    description: string;
+    sourceName: string;
+    sourceUrl: string;
+  };
+};
+
 export default function AssistantPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "init",
       role: "assistant",
-      content: "Hello! I am HAQ, your Civic & Legal Assistant. To get started, please briefly describe the issue you are facing. (e.g., 'My scholarship hasn't arrived.')"
+      content: "Hello! I am HAQ, your Civic & Legal Assistant. To get started, please briefly describe the issue you are facing. (e.g., 'My scholarship hasn't arrived.' or 'My landlord won't return my deposit.')"
     }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [caseState, setCaseState] = useState<CaseState | null>(null);
+  const [schemaDetails, setSchemaDetails] = useState<SchemaDetails | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +74,9 @@ export default function AssistantPage() {
       if (res.ok) {
         setCaseState(data.caseState);
         setMessages(prev => [...prev, data.message]);
+        if (data.schemaDetails) {
+          setSchemaDetails(data.schemaDetails);
+        }
       } else {
         console.error(data.error);
       }
@@ -147,7 +161,7 @@ export default function AssistantPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[10px] text-slate-muted uppercase tracking-wider font-semibold">Category</p>
-                  <p className="text-sm font-medium text-foreground">{caseState?.category || "Analyzing..."}</p>
+                  <p className="text-sm font-medium text-foreground">{schemaDetails?.categoryLabel || (caseState?.category === "GENERAL" ? "General Inquiry" : "Analyzing...")}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-slate-muted uppercase tracking-wider font-semibold">Status</p>
@@ -216,13 +230,15 @@ export default function AssistantPage() {
               <AlertCircle className="h-4 w-4" /> Rights Navigator
             </h2>
             <div className="border border-stone-border bg-blue-50/30 rounded-xl p-4 text-sm text-foreground space-y-2">
-              <p className="font-semibold text-navy">Post-Matric Scholarship Rules</p>
+              <p className="font-semibold text-navy">{schemaDetails?.rightsNavigator?.title || "Civic & Legal Rights"}</p>
               <p className="text-xs text-slate-muted leading-relaxed">
-                As per the Ministry of Social Justice guidelines, applications must be verified within a stipulated timeframe. Delays over 60 days can be queried via the RTI Act, 2005 to the District Welfare Officer.
+                {schemaDetails?.rightsNavigator?.description || "Describe your specific issue so we can locate the relevant laws, government guidelines, or constitutional rights that apply to your case."}
               </p>
-              <a href="https://scholarships.gov.in" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-navy hover:underline inline-flex items-center gap-1 pt-1">
-                Source: National Scholarship Portal <ChevronRight className="h-3 w-3" />
-              </a>
+              {schemaDetails?.rightsNavigator?.sourceName && (
+                <a href={schemaDetails.rightsNavigator.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-navy hover:underline inline-flex items-center gap-1 pt-1">
+                  Source: {schemaDetails.rightsNavigator.sourceName} <ChevronRight className="h-3 w-3" />
+                </a>
+              )}
             </div>
           </div>
 
