@@ -116,3 +116,90 @@ model AiCaseEvidence {
   isMissing    Boolean  @default(false)
 }
 
+// ==========================================
+// NYAYA-AI EXPANSION MODELS
+// ==========================================
+
+model KYRArticle {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  category    String    // e.g. "consumer", "police_fir", "tenant", "women_posh", "cybercrime", "labor", "rti", "senior_citizens"
+  excerpt     String
+  content     String
+  tags        String[]
+  readTime    String    @default("4 min")
+  citations   String[]  // Standard legal citations e.g. ["Section 154 CrPC / BNSS", "Article 21"]
+  publishedAt DateTime  @default(now())
+}
+
+model Lawyer {
+  id              String   @id @default(uuid())
+  name            String
+  email           String   @unique
+  phone           String?
+  avatar          String?
+  barCouncilNo    String
+  experienceYears Int
+  city            String
+  state           String
+  consultationFee Int      @default(500) // in INR
+  rating          Float    @default(4.8)
+  reviewCount     Int      @default(0)
+  isVerified      Boolean  @default(true)
+  languages       String[]
+  specializations String[] // e.g. ["Consumer Law", "Criminal Defense", "Family & Matrimonial", "Cybercrime", "Property & Tenancy", "Corporate & Labor"]
+  bio             String
+  education       String?
+  courtPractice   String[] // e.g. ["Delhi High Court", "Tis Hazari District Court"]
+  
+  bookings        ConsultationBooking[]
+}
+
+model ConsultationBooking {
+  id               String   @id @default(uuid())
+  createdAt        DateTime @default(now())
+  
+  lawyerId         String
+  lawyer           Lawyer   @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  
+  sessionId        String   // Links to user's anonymous or registered session
+  userName         String
+  userEmail        String
+  userPhone        String
+  bookingDate      String
+  timeSlot         String
+  issueCategory    String?
+  issueDescription String
+  status           String   @default("confirmed") // "pending", "confirmed", "completed", "cancelled"
+}
+
+model SavedDocumentDraft {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  sessionId    String
+  templateType String   // "rti_6_1", "consumer_notice", "tenancy_demand", "cyber_fraud", "workplace_posh", "breach_notice"
+  title        String
+  content      String
+  variables    Json     @default("{}")
+}
+
+model CaseStory {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  
+  title           String
+  category        String   // "consumer", "tenancy", "rti_impact", "workplace", "police"
+  summary         String
+  fullStory       String
+  resolutionRoute Json     // Array of steps taken
+  outcome         String
+  takeaways       String[]
+  state           String?
+  authorName      String   @default("Anonymous Citizen")
+  likes           Int      @default(0)
+}
+
+
