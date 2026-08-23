@@ -1,38 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, HelpCircle, AlertCircle, Info, BookOpen } from "lucide-react";
+import { 
+  ArrowRight, AlertCircle, Info, Bot, FileText, 
+  BookOpen, Users, BookMarked, LayoutDashboard, Sparkles, ShieldCheck, CheckCircle2
+} from "lucide-react";
 import { useHAQ } from "@/lib/store";
+import { useLanguage } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-export default function IntakePage() {
+export default function HomePage() {
   const router = useRouter();
-  const { categories, intakeText, setIntakeText, resetSession } = useHAQ();
+  const { intakeText, setIntakeText, resetSession } = useHAQ();
+  const { t } = useLanguage();
   const [localText, setLocalText] = useState(intakeText);
   const [error, setError] = useState("");
 
   const EXAMPLES = [
     {
-      label: "My scholarship application is delayed",
+      label: "Delayed scholarship application",
       text: "I applied for the post-matric scholarship scheme 60 days ago. The application status has been stuck at 'Under Verification' at the district welfare office, and no funds have been disbursed."
     },
     {
-      label: "My municipal sanitation complaint is unanswered",
-      text: "The public garbage dump in Sector 4 has been overflowing for the last 3 weeks, blockading the sidewalk. We registered an online grievance (Ref: SAN-9921) with the municipal corporation but no cleanup has occurred."
-    },
-    {
-      label: "My landlord has not returned my security deposit",
+      label: "Unreturned rental security deposit",
       text: "I vacated my rented flat 2 months ago after giving 1 month notice. The landlord inspected the flat, confirmed no damages, but is now ignoring my messages and has not returned my security deposit of Rs. 50,000."
     },
     {
-      label: "My online purchase is defective and refund is delayed",
+      label: "Defective online product & refund refusal",
       text: "I purchased a smartphone from an online retailer on July 10th for Rs. 15,000. Within 3 days, the screen started flickering. The brand service center refused replacement claiming physical damage, which is incorrect as the phone has no scratches."
     },
     {
-      label: "My welfare-scheme eligibility application has no update",
-      text: "I applied for the Senior Citizen Pension scheme (Application Ref: PEN-88712) at the Block Social Welfare office 90 days ago. I meet all eligibility criteria, but no verification has been conducted and no pension has been credited."
+      label: "Cyber UPI debit / unauthorized transaction",
+      text: "An unauthorized debit of Rs. 35,000 occurred from my bank account via UPI without receiving any OTP. I reported it to my bank within 24 hours but no shadow credit has been provided."
+    },
+    {
+      label: "Workplace unpaid salary & withheld FnF",
+      text: "I resigned from my company and completed my full 2-month notice period on Dec 31. The employer has not released my Full and Final (FnF) settlement or salary for 60 days."
     }
   ];
 
@@ -56,51 +64,155 @@ export default function IntakePage() {
     setError("");
   };
 
+  const FEATURE_PORTALS = [
+    {
+      title: "HAQ AI Legal Assistant",
+      desc: "Interactive conversational AI with evidence readiness score, timeline tracking, and dynamic legal schema extraction.",
+      href: "/assistant",
+      icon: Bot,
+      badge: "Flagship AI",
+      highlight: true
+    },
+    {
+      title: "Document Studio & AI Enhancer",
+      desc: "Draft standardized RTI 6(1) queries, consumer demand notices, tenancy letters, or enhance raw dispute notes with Gemini.",
+      href: "/documents",
+      icon: FileText,
+      badge: "Print-Ready A4"
+    },
+    {
+      title: "Know Your Rights (KYR)",
+      desc: "Searchable plain-language guides to Indian civil, criminal, cyber, and consumer laws with statutory citations.",
+      href: "/kyr",
+      icon: BookOpen,
+      badge: "8 Legal Domains"
+    },
+    {
+      title: "Verified Advocate Directory",
+      desc: "Connect with Bar Council verified advocates across Indian cities and book direct 45-minute consultations.",
+      href: "/lawyers",
+      icon: Users,
+      badge: "Bar Verified"
+    },
+    {
+      title: "Citizen Case Stories",
+      desc: "Real-life case precedents and step-by-step resolution journeys from citizens who successfully asserted their rights.",
+      href: "/stories",
+      icon: BookMarked,
+      badge: "Precedents"
+    },
+    {
+      title: "My Dashboard",
+      desc: "Your centralized citizen hub tracking active AI cases, saved document drafts, advocate bookings, and bookmarks.",
+      href: "/dashboard",
+      icon: LayoutDashboard,
+      badge: "Central Hub"
+    }
+  ];
+
   return (
-    <div className="flex flex-col space-y-10 max-w-2xl mx-auto py-8">
+    <div className="space-y-12 max-w-5xl mx-auto py-4">
       {/* Hero Header */}
-      <div className="space-y-3 text-center sm:text-left">
-        <h1 className="font-sans text-3xl font-bold tracking-tight text-navy sm:text-4xl leading-tight">
-          Understand your rights.<br />Take the next step.
+      <div className="space-y-4 text-center sm:text-left border-b border-stone-border/60 pb-8">
+        <div className="inline-flex items-center gap-2 px-3 py-1 bg-stone-border/30 border border-stone-border/60 rounded-full text-xs font-semibold text-navy">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
+          <span>{t("gov_compliance")}</span>
+        </div>
+
+        <h1 className="font-sans text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-navy leading-tight">
+          {t("hero_title")}
         </h1>
-        <p className="text-sm text-slate-muted max-w-xl leading-relaxed">
-          Describe your civic concern in simple words. HAQ turns it into a clear action plan.
+        <p className="text-sm sm:text-base text-slate-muted max-w-2xl leading-relaxed">
+          {t("hero_subtitle")}
         </p>
       </div>
 
-      {/* Main Intake Form */}
-      <div className="space-y-6">
+      {/* Feature Exploration Grid (6 Key Modules) */}
+      <div className="space-y-4">
+        <h2 className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-navy" /> Explore HAQ Ecosystem
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {FEATURE_PORTALS.map((portal) => {
+            const Icon = portal.icon;
+            return (
+              <Link key={portal.href} href={portal.href}>
+                <Card className={`h-full border transition-all duration-150 group shadow-none cursor-pointer flex flex-col justify-between ${
+                  portal.highlight 
+                    ? "border-navy bg-stone-border/15 hover:bg-stone-border/25" 
+                    : "border-stone-border bg-paper hover:border-navy"
+                }`}>
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className={`p-2 rounded-md ${portal.highlight ? "bg-navy text-paper" : "bg-stone-border/30 text-navy"}`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] uppercase font-mono bg-stone-border/30 text-navy">
+                        {portal.badge}
+                      </Badge>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-navy group-hover:underline">
+                      {portal.title}
+                    </h3>
+                    <p className="text-xs text-slate-muted leading-relaxed">
+                      {portal.desc}
+                    </p>
+                  </CardContent>
+
+                  <div className="px-5 py-3 border-t border-stone-border/40 flex items-center justify-between text-xs text-slate-muted group-hover:text-navy font-semibold">
+                    <span>Open Module</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Intake Form Section */}
+      <div className="border-t border-stone-border/60 pt-8 space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-navy">
+            Quick Grievance Intake & Guided Resolution
+          </h2>
+          <p className="text-xs text-slate-muted">
+            Prefer a guided 3-step intake? Describe your dispute in plain English below to generate a tailored resolution checklist and Section 6(1) RTI / Legal Notice.
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="issue-description" className="sr-only">Describe your issue</label>
             <Textarea
               id="issue-description"
-              placeholder="Describe your concern here (mention key details like dates, location, or reference numbers if you have them)..."
+              placeholder="Describe your concern here (mention key details like dates, disputed amounts, reference numbers, or official departments)..."
               value={localText}
               onChange={(e) => {
                 setLocalText(e.target.value);
-                if (e.target.value.trim().length >= 20) {
-                  setError("");
-                }
+                if (e.target.value.trim().length >= 20) setError("");
               }}
-              className="min-h-[160px] w-full p-4 text-sm border border-stone-border bg-paper rounded-md focus-visible:ring-1 focus-visible:ring-navy focus-visible:border-navy leading-relaxed text-foreground placeholder:text-slate-muted/60"
+              className="min-h-[140px] w-full p-4 text-xs sm:text-sm border border-stone-border bg-paper rounded-md focus-visible:ring-1 focus-visible:ring-navy focus-visible:border-navy leading-relaxed text-foreground placeholder:text-slate-muted/60"
             />
             <div className="flex justify-between items-center text-xs text-slate-muted">
-              <span>Write in plain English. Be specific.</span>
+              <span>Write in simple language. Be specific.</span>
               <span>{localText.length} characters</span>
             </div>
           </div>
 
           {/* Example Chips */}
           <div className="space-y-2">
-            <span className="text-xs font-semibold text-navy uppercase tracking-wider block">Example concerns (Click to test):</span>
+            <span className="text-xs font-semibold text-navy uppercase tracking-wider block">
+              Quick test examples (Click to fill):
+            </span>
             <div className="flex flex-wrap gap-2">
               {EXAMPLES.map((ex, index) => (
                 <button
                   key={index}
                   type="button"
                   onClick={() => handleQuickSelect(ex.text)}
-                  className="text-xs px-3 py-1.5 border border-stone-border rounded-full bg-paper hover:bg-stone-border/20 text-slate-muted hover:text-navy cursor-pointer transition-colors text-left focus-visible:ring-1 focus-visible:ring-navy focus-visible:outline-none"
+                  className="text-xs px-3 py-1.5 border border-stone-border rounded-full bg-paper hover:bg-stone-border/20 text-slate-muted hover:text-navy cursor-pointer transition-colors text-left"
                 >
                   {ex.label}
                 </button>
@@ -116,8 +228,11 @@ export default function IntakePage() {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button type="submit" className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-navy text-paper hover:bg-navy-hover transition-colors font-semibold px-6 h-11 rounded-md cursor-pointer">
-              Find my next step
+            <Button 
+              type="submit" 
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-navy text-paper hover:bg-navy-hover transition-colors font-semibold px-6 h-11 rounded-md cursor-pointer"
+            >
+              {t("find_next_step")}
               <ArrowRight className="h-4 w-4" />
             </Button>
             {intakeText && (
@@ -136,73 +251,13 @@ export default function IntakePage() {
           </div>
         </form>
 
-        {/* Small Legal Disclaimer */}
+        {/* Small Legal Notice */}
         <div className="p-4 border border-stone-border/60 bg-paper/60 rounded-md text-xs text-slate-muted flex items-start gap-3">
           <Info className="h-4 w-4 text-slate-muted flex-shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            HAQ is an open civic information platform. It provides legal guidelines, step-by-step resolution routes, and document templates under the RTI Act and relevant laws, but does not constitute formal legal advice.
+            {t("footer_disclaimer")}
           </p>
         </div>
-      </div>
-
-      {/* How HAQ Works Section */}
-      <div className="border-t border-stone-border/60 pt-8 space-y-4">
-        <h2 className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-2">
-          <BookOpen className="h-4.5 w-4.5 text-slate-muted" />
-          How HAQ Works
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div className="p-4 border border-stone-border bg-paper rounded-md space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 bg-navy text-paper flex items-center justify-center font-bold font-mono rounded-full text-[10px]">1</span>
-              <strong className="text-navy uppercase">Describe</strong>
-            </div>
-            <p className="text-slate-muted leading-relaxed">
-              Describe your administrative concern or delay in plain language.
-            </p>
-          </div>
-          <div className="p-4 border border-stone-border bg-paper rounded-md space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 bg-navy text-paper flex items-center justify-center font-bold font-mono rounded-full text-[10px]">2</span>
-              <strong className="text-navy uppercase">Answer</strong>
-            </div>
-            <p className="text-slate-muted leading-relaxed">
-              Complete a short, conversational guided flow to fill in dates, reference IDs, and jurisdictions.
-            </p>
-          </div>
-          <div className="p-4 border border-stone-border bg-paper rounded-md space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 bg-navy text-paper flex items-center justify-center font-bold font-mono rounded-full text-[10px]">3</span>
-              <strong className="text-navy uppercase">Resolve</strong>
-            </div>
-            <p className="text-slate-muted leading-relaxed">
-              Get an escalation route, an interactive checklist of documents, and an editable, printable RTI/Legal Notice draft.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Supported Areas Grid - Clean & Minimalist */}
-      <div className="border-t border-stone-border/60 pt-8 space-y-4">
-        <h2 className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-2">
-          <HelpCircle className="h-4.5 w-4.5 text-slate-muted" />
-          Supported Areas of Civil Resolution
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {categories.map((cat) => (
-            <div key={cat.id} className="p-4 border border-stone-border bg-paper rounded-md flex flex-col justify-between">
-              <div className="space-y-1">
-                <h3 className="font-bold text-xs text-navy uppercase tracking-wide">{cat.title}</h3>
-                <p className="text-xs text-slate-muted leading-relaxed">{cat.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Demo Privacy notice */}
-      <div className="text-center text-[10px] text-slate-muted/80 leading-relaxed border-t border-stone-border/40 pt-4">
-        Privacy & Usage Notice: HAQ is a demonstration prototype. All inputs entered are for testing purposes only and do not constitute official records or binding legal filings. No personal data is stored on our servers.
       </div>
     </div>
   );

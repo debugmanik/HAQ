@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { HAQProvider } from "@/lib/store";
+import { LanguageProvider } from "@/lib/i18n";
 import { Header } from "@/components/haq/Header";
 import { Footer } from "@/components/haq/Footer";
 
@@ -16,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HAQ — Legal & Civil Help",
-  description: "Help Indian citizens describe a civic or legal problem, understand their route, get action checklists, and generate RTI drafts.",
+  title: "HAQ — Indian Civic & Legal Intelligence Platform",
+  description: "Empowering Indian citizens to navigate legal grievances, assert constitutional & statutory rights, draft formal legal notices & RTI applications, and connect with verified advocates.",
 };
 
 export default function RootLayout({
@@ -31,13 +32,15 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground overflow-x-hidden">
-        <HAQProvider>
-          <Header />
-          <main className="flex-grow flex flex-col w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
-          <Footer />
-        </HAQProvider>
+        <LanguageProvider>
+          <HAQProvider>
+            <Header />
+            <main className="flex-grow flex flex-col w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {children}
+            </main>
+            <Footer />
+          </HAQProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

@@ -1,147 +1,212 @@
-# HAQ — Legal & Civil Help (Indian Civic Assistance MVP)
+# HAQ (हक) — Indian Civic & Legal Intelligence Platform
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=for-the-badge&logo=tailwind-css)
-![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?style=for-the-badge&logo=prisma)
+![Prisma](https://img.shields.io/badge/Prisma-7.9-2D3748?style=for-the-badge&logo=prisma)
+![Google GenAI](https://img.shields.io/badge/Google_GenAI-Gemini-4285F4?style=for-the-badge&logo=google)
 
-HAQ is a full-stack civic-tech web MVP built to help Indian citizens describe civic or legal problems in plain language, understand their official escalation routes, get a step-by-step checklist of actions, and draft formal applications under Section 6(1) of the Right to Information (RTI) Act, 2005.
-
----
-
-## 🌟 Key Features
-
-- **Plain-Language Intake**: Users can describe their problems naturally.
-- **AI-Powered Legal Categorization**: Automatically determines the nature of the issue and legal status.
-- **Guided Multi-Step Flow**: A simple, fatigue-free 3-step interview process to gather necessary details.
-- **Interactive Action Checklists**: Step-by-step guidance customized to the user's specific case.
-- **Automated Document Drafting**: Instantly generates print-ready RTI applications or legal demand notices based on the provided details.
-- **Accessible & Trust-Focused Design**: Built with a minimalist, high-contrast UI inspired by official legal documents.
+**HAQ** (*"Right" / "हक"*) is a comprehensive, full-stack civic-tech and legal reasoning platform built to empower Indian citizens in understanding their rights, navigating administrative roadblocks, resolving legal disputes, drafting official statutory notices, and connecting with verified advocates.
 
 ---
 
-## 🏛️ Project Principles & Design System
+## 🌟 Core Modules & Capabilities
 
-In compliance with the minimalist, high-contrast, trust-focused requirement:
-- **Background**: Solid off-white (`#FAF9F5`) to replicate official legal paper.
-- **Typography**: Clean, highly readable default sans-serif (`Geist` / `system-ui`) with clear hierarchies.
-- **Accents**: Muted navy (`#122438`) for buttons, active state highlights, and structural icons only.
-- **Borders**: Thin, flat stone lines (`#E5E3DC`) instead of card shadows, gradients, or glassmorphism.
-- **Accessibility**: High contrast text (`#1C1C1C` charcoal) designed for readability on both desktop and mobile layouts.
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                              HAQ ECOSYSTEM                                │
+├───────────────────┬───────────────────┬───────────────────┬───────────────┤
+│  🤖 AI ASSISTANT  │  📄 DOC STUDIO    │  📚 RIGHTS (KYR)  │ 👨‍💼 ADVOCATES │
+│  • Evidence Score │  • RTI 6(1) Draft │  • 8 Legal Topics │ • Bar Verified│
+│  • Dynamic Schema │  • Consumer Notice│  • Section Citings│ • City Filters│
+│  • Action Roadmap │  • AI Polisher    │  • Action Guides  │ • Consultations│
+├───────────────────┴───────────────────┴───────────────────┴───────────────┤
+│  📖 CASE STORIES  │  🌐 7 INDIAN LANGS│  📊 DASHBOARD     │ ⚖️ INTAKE     │
+│  • Precedents     │  • EN, HI, BN, TA │  • Case Tracker   │ • Guided Flow │
+│  • Timeline Steps │  • TE, MR, KN     │  • Saved Drafts   │ • RTI Output  │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. 🤖 Flagship HAQ AI Legal Assistant (`/assistant`)
+- Multi-turn conversational AI specialized in Indian legal reasoning powered by `@google/genai` (Gemini).
+- **Dynamic Legal Schema Extraction**: Dynamically identifies issue categories (*Administrative Delays, PoSH / Workplace Harassment, Tenant Deposit Disputes, Civic Complaints*).
+- **Evidence Readiness Score**: Calculates a real-time 0–100% evidentiary readiness score as the citizen provides details.
+- **Action Roadmap**: Generates sequential escalation steps with responsible authorities and official grievance portals (CPGRAMS, NCH 1915, Cyber Helpline 1930).
+
+### 2. 📄 Legal Document Studio & AI Enhancer (`/documents`)
+- **Template Library**: 6 standardized Indian legal templates:
+  1. *Right to Information (RTI) Application under Section 6(1)*
+  2. *Consumer Demand Notice under Consumer Protection Act 2019*
+  3. *Landlord-Tenant Security Deposit Refund Notice under Model Tenancy Act*
+  4. *Cybercrime Financial Fraud Bank Representation under RBI Circular*
+  5. *Workplace Salary & Full and Final (FnF) Grievance Notice*
+  6. *General Breach of Contract Notice under Indian Contract Act 1872*
+- **AI Document Polisher**: Paste raw, informal dispute notes and let Gemini transform them into an authoritative legal demand notice with statutory citations and a strict 15-day compliance window.
+- **Print & Export**: Print-ready Georgia legal serif A4 layout, `.txt` download, and clipboard copy.
+
+### 3. 📚 Know Your Rights (KYR) Knowledge Base (`/kyr`)
+- Searchable library across 8 core Indian legal domains (*Police & FIR Procedures, Consumer Protection, Housing & Tenancy, Women & PoSH Rights, Cybercrime & Online Fraud, Labor & Wages, RTI Act, Senior Citizens*).
+- Reader view with landmark Supreme Court rulings (*D.K. Basu arrest guidelines, Lalita Kumari mandatory FIR ruling*), statutory sections, key takeaways, and action checklists.
+- One-click article bookmarking synced with the Citizen Dashboard.
+
+### 4. 👨‍💼 Verified Indian Advocate Directory (`/lawyers`)
+- Directory of verified advocates across major Indian cities (*Delhi, Mumbai, Bengaluru, Hyderabad, Chennai, Kolkata, Lucknow, Patna, Chandigarh*).
+- Search and filter by legal specialization, city, court practice, and experience.
+- Interactive **Consultation Booking Modal** to schedule direct 45-minute consultations with Bar Council verified advocates.
+
+### 5. 📖 Citizen Case Stories & Precedents (`/stories`)
+- Real-life precedent stories of how Indian citizens resolved security deposit disputes, recovered stolen cyber funds via Helpline 1930, or unlocked delayed scholarships via RTI.
+- Includes step-by-step resolution timelines, key takeaways, and a community "Share Your Story" submission dialog.
+
+### 6. 🌐 Multilingual Localization (7 Indian Languages)
+- Instant language switcher in navigation supporting **English**, **Hindi (हिन्दी)**, **Bengali (বাংলা)**, **Tamil (தமிழ்)**, **Telugu (తెలుగు)**, **Marathi (मराठी)**, and **Kannada (ಕನ್ನಡ)**.
+
+### 7. 📊 Unified Citizen Dashboard (`/dashboard`)
+- Centralized hub tracking:
+  - Active AI Assistant cases with readiness scores.
+  - Saved legal notices and RTI applications.
+  - Scheduled advocate consultation bookings.
+  - Bookmarked Know Your Rights guides.
+
+### 8. ⚖️ Guided Grievance Intake & Section 6(1) Drafting (`/` & `/help` & `/result`)
+- 3-step fatigue-free intake interview with custom category builder, statutory analysis, and print-ready legal document generation.
 
 ---
 
-## 🛠️ Stack & Architecture
+## 🏛️ Design System & Principles
 
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4 (CSS-first configurations)
-- **Icons**: Lucide React (used sparingly to keep the interface professional and fast-loading)
-- **Radix UI**: Headless accessible primitives (`@radix-ui/react-slot` & `@radix-ui/react-dialog`)
-- **State Management**: React Context (`src/lib/store.tsx`) capturing issue descriptions, categories, and multi-step interview data, synchronized with `localStorage` for session persistence.
+In compliance with HAQ's trust-focused, high-accessibility design principles:
+- **Background**: Solid off-white legal paper (`#FAF9F5`).
+- **Accents**: Deep institutional navy (`#122438`) for buttons, active state highlights, and structural icons.
+- **Borders**: Clean, flat stone lines (`#E5E3DC`) instead of heavy shadows or glassmorphism.
+- **Typography**: Clean modern sans-serif (`Geist` / `system-ui`) paired with classic Georgia legal serif for formal document previews.
+- **Legal Safeguards**: Zero deceptive legal promises, strict educational disclaimers across all views, and automatic safety escalations (Emergency 112 / Women Helpline 1091).
 
 ---
 
-## 📂 Project Structure
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+|---|---|
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router, Turbopack) |
+| **Language & Runtime** | [TypeScript 5](https://www.typescriptlang.org/), [React 19](https://react.dev/) |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) (CSS variables & @theme) |
+| **Database & ORM** | [Prisma 7.9](https://www.prisma.io/) with PostgreSQL & `@prisma/adapter-pg` |
+| **AI Intelligence** | Google GenAI SDK (`@google/genai`) with Gemini 2.5 / 3.0 |
+| **UI Primitives** | Radix UI (`@radix-ui/react-dialog`, `@radix-ui/react-slot`), Lucide React |
+
+---
+
+## 📂 Project Directory Structure
 
 ```
 haq/
+├── prisma/
+│   ├── schema.prisma             # Extended Prisma schema (KYR, Lawyers, Bookings, Drafts, Stories, AiCase)
+│   └── seed.ts                   # Seed dataset for advocates, articles, templates
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx         # Configures layout wrap, Header, Footer, and Session Context
-│   │   ├── page.tsx           # / (Landing and free-text grievance intake)
-│   │   ├── help/
-│   │   │   └── page.tsx       # /help (3-step guided interview flow & verification)
-│   │   ├── result/
-│   │   │   └── page.tsx       # /result (Resolution pathway, interactive checklist, and RTI draft)
-│   │   └── globals.css        # Clean, solid styling definitions (Tailwind v4 theme variables)
+│   │   ├── api/
+│   │   │   ├── assistant/chat/   # Multi-turn Gemini AI Assistant with dynamic schema
+│   │   │   ├── documents/enhance/# AI Document Polisher endpoint
+│   │   │   ├── kyr/              # Know Your Rights search & category API
+│   │   │   ├── lawyers/          # Lawyer directory & consultation booking API
+│   │   │   ├── stories/          # Case stories listing & submission API
+│   │   │   ├── analyze/          # Standalone grievance analysis API
+│   │   │   ├── categories/       # Category retrieval API
+│   │   │   └── session/          # Cookie-backed session management
+│   │   ├── assistant/page.tsx    # HAQ AI Legal Assistant interface
+│   │   ├── documents/page.tsx    # Legal Document Studio & AI Enhancer
+│   │   ├── kyr/
+│   │   │   ├── page.tsx          # Know Your Rights library
+│   │   │   └── [id]/page.tsx     # Single KYR article deep-dive reader
+│   │   ├── lawyers/page.tsx      # Verified Advocate Directory
+│   │   ├── stories/page.tsx      # Case Stories & Precedents
+│   │   ├── dashboard/page.tsx    # Unified Citizen Dashboard
+│   │   ├── help/page.tsx         # Guided 3-step interview flow
+│   │   ├── result/page.tsx       # Grievance analysis & RTI draft result
+│   │   ├── layout.tsx            # Global layout with LanguageProvider & HAQProvider
+│   │   ├── page.tsx              # Homepage showcasing all 6 ecosystem modules
+│   │   └── globals.css           # Tailwind v4 theme variables
 │   ├── components/
-│   │   ├── ui/                # Custom styled atomic components
-│   │   │   ├── button.tsx
-│   │   │   ├── card.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── textarea.tsx
-│   │   │   ├── badge.tsx
-│   │   │   └── dialog.tsx
-│   │   └── haq/               # Layout components
-│   │       ├── Header.tsx     # Dynamic header with session reset controls
-│   │       └── Footer.tsx     # Footer containing disclaimers and official links
+│   │   ├── haq/
+│   │   │   ├── Header.tsx        # Top navbar with navigation links & language switcher
+│   │   │   ├── Footer.tsx        # Government portal links & legal disclaimers
+│   │   │   ├── LanguageSwitcher.tsx # Multilingual dropdown for 7 Indian languages
+│   │   │   └── ConsultationModal.tsx# Advocate consultation booking dialog
+│   │   └── ui/                   # Reusable atomic UI components (Button, Input, Textarea, Dialog, Card)
 │   └── lib/
-│       ├── utils.ts           # Class name merger helper
-│       ├── mock-data.ts       # Structured grievance categories, questions, paths, & RTI templates
-│       └── store.tsx          # Multi-step state management context
-├── tailwind.config.ts         # Post-CSS tailwind hook
+│       ├── i18n.tsx              # Multilingual dictionary & context hook
+│       ├── kyr-data.ts           # Comprehensive Know Your Rights dataset
+│       ├── lawyer-data.ts        # Verified Indian advocate dataset
+│       ├── story-data.ts         # Citizen resolution case stories dataset
+│       ├── document-templates.ts # 6 standardized legal document templates
+│       ├── schemas.ts            # Dynamic legal schemas (PoSH, Tenancy, Delays, Civic)
+│       ├── prisma.ts             # Prisma client instance with PostgreSQL pool
+│       └── store.tsx             # Multi-step state management context
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## 🚀 Setup & Run Instructions
+## 🚀 Setup & Run Locally
 
-Ensure you have [Node.js](https://nodejs.org/) installed (v18.x or above recommended).
+### 1. Prerequisites
+- [Node.js](https://nodejs.org/) (v18.x or above recommended)
+- [PostgreSQL](https://www.postgresql.org/) database (optional; offline fallbacks are included)
 
-### 1. Install Dependencies
-Navigate to the project root directory and install npm packages:
+### 2. Install Dependencies
 ```bash
 npm install
 ```
 
-### 2. Run the Development Server
-Run the local dev server:
+### 3. Configure Environment Variables
+Create a `.env` or `.env.local` file in the root directory:
+```env
+# Google Gemini AI API Key (Get from https://aistudio.google.com/)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# PostgreSQL Connection String (Optional / Supabase / Neon / Local)
+DATABASE_URL=postgresql://postgres:password@localhost:5432/haq
+```
+
+### 4. Generate Prisma Client
+```bash
+npx prisma generate
+```
+
+### 5. Run the Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser to inspect the application.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 3. Build & Production Check
-Verify compilation and generate production static assets:
+### 6. Production Build & Linting
 ```bash
 npm run build
-```
-
-### 4. Run ESLint checks
-Verify code quality and linting constraints:
-```bash
 npm run lint
 ```
 
 ---
 
-## 🚀 Vercel Deployment Steps
+## ⏱️ Comprehensive Demo Walkthrough
 
-You can easily deploy HAQ to Vercel for a live demo:
-
-1. **Push to GitHub**: Initialize a Git repository and push the code to your GitHub/GitLab account.
-2. **Import to Vercel**: Sign in to [Vercel](https://vercel.com/) and click **Add New Project**. Select your repository.
-3. **Configure Environment Variables**: Under the "Environment Variables" section, add:
-   - Key: `OPENAI_API_KEY`
-   - Value: `your_openai_api_key_here` (starts with `sk-`)
-4. **Deploy**: Click **Deploy**. Vercel will build and serve the application globally.
+1. **Homepage (`/`)**: Explore the 6 core ecosystem cards or toggle regional languages (English, Hindi, Bengali, Tamil, Telugu, Marathi, Kannada) in the top navigation.
+2. **HAQ AI Assistant (`/assistant`)**: Describe a complex dispute (e.g. landlord withheld deposit or workplace salary delay). Watch the AI calculate the evidence readiness score, extract parties and monetary claims, and build a sequential action roadmap.
+3. **Legal Document Studio (`/documents`)**:
+   - Select the *Consumer Demand Notice* or *RTI 6(1)* template, fill the dynamic variables, and click **Print A4 / PDF**.
+   - Switch to **AI Document Polisher**, paste raw dispute notes, and watch Gemini generate a complete formal legal notice with statutory clauses.
+4. **Know Your Rights (`/kyr`)**: Search for `"FIR"`, `"deposit"`, or `"cyber"`. Open an article to view statutory citations, landmark judgments, and step-by-step action checklists. Click **Bookmark**.
+5. **Advocate Directory (`/lawyers`)**: Filter by city (*Bengaluru*, *Delhi*, *Mumbai*) and specialization (*Tenancy*, *Cybercrime*, *Consumer*). Click **Book Consultation** to schedule an appointment.
+6. **Citizen Dashboard (`/dashboard`)**: View all your active AI inquiries, saved document drafts, advocate consultation bookings, and bookmarked guides in one place.
 
 ---
 
-## ⏱️ 90-Second Hackathon Demo Script
+## ⚖️ Legal Disclaimer
+HAQ is an open civic and legal education platform. It provides statutory guidelines, step-by-step resolution routes, and document templates, but does not constitute formal legal advice or create an attorney-client relationship.
 
-Follow this script to deliver a flawless, high-impact demonstration of HAQ under 90 seconds:
+---
 
-- **0:00 - 0:15 | Intake & Landing**:
-  - Present the homepage: *"HAQ translates plain-language citizen concerns into clear legal action plans."*
-  - Click the example chip: **"My landlord has not returned my security deposit"**. Show how the text area is pre-filled with a realistic, detailed dispute.
-  - Click the primary CTA **"Find my next step"** to start.
-
-- **0:15 - 0:40 | The Guided Flow**:
-  - Show the **one-question-per-screen card layout** and the progress bar. Explain that this prevents form fatigue.
-  - Step through the questions: Select State/UT, District, enter Landlord's Name, Property Address, Deposit Amount (Rs. 50,000), Vacate Date, and Desired Outcome.
-  - On the final screen, enter your name (*"Arun Kumar"*) and address. Click **"Generate Notice"**.
-
-- **0:40 - 1:10 | AI Analysis & Fallback Resiliency**:
-  - Land on `/result`. Point out the custom **pulsating skeleton screens** as the AI analyzes the case.
-  - Point to the **AI Category** badge, **Confidence rating**, and the **Plain-Language legal status** box explaining tenant rights under the Model Tenancy Act.
-  - Scroll down to review the custom interactive checklist and the **"Missing Questions"** panel which highlights what other details the user should verify.
-
-- **1:10 - 1:30 | Standalone RTI Draft & PDF Export**:
-  - Scroll to the draft panel. Explain that because it is a private dispute, HAQ automatically generated a **Formal Legal Demand Notice** instead of an RTI.
-  - Type directly inside the preview textarea to demonstrate that it is fully editable.
-  - Click **"Print PDF"** (or Download PDF) to launch the print preview. Show the beautiful, print-ready document formatted in a classic Georgia-serif legal layout.
-  - Conclude: *"HAQ empowers citizens to know their routes and claim their rights."*
+## 📄 License
+This project is licensed under the [MIT License](LICENSE).
