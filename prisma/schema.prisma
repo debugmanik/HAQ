@@ -53,3 +53,66 @@ model CaseInquiry {
   
   aiResponse      Json?
 }
+
+// ==========================================
+// NEW AI ASSISTANT MODELS (HAQ 2.0)
+// ==========================================
+
+model AiCase {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  sessionId       String   // To tie back to anonymous UserSession or authenticated user later
+  
+  // High-level dashboard fields
+  category        String?
+  jurisdiction    String?
+  authority       String?
+  readinessScore  Int      @default(0)
+  status          String   @default("gathering_context") // gathering_context, ready, resolved
+  
+  // The dynamically extracted JSON state
+  extractedData   Json     @default("{}")
+
+  messages        AiCaseMessage[]
+  actions         AiCaseAction[]
+  evidence        AiCaseEvidence[]
+}
+
+model AiCaseMessage {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  
+  aiCaseId   String
+  aiCase     AiCase   @relation(fields: [aiCaseId], references: [id], onDelete: Cascade)
+  
+  role       String   // "user" | "assistant" | "system"
+  content    String
+}
+
+model AiCaseAction {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  
+  aiCaseId   String
+  aiCase     AiCase   @relation(fields: [aiCaseId], references: [id], onDelete: Cascade)
+  
+  type       String   // "understanding", "identify_authority", "submit_grievance", "rti"
+  status     String   // "completed", "current", "pending"
+  title      String
+  order      Int
+}
+
+model AiCaseEvidence {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now())
+  
+  aiCaseId     String
+  aiCase       AiCase   @relation(fields: [aiCaseId], references: [id], onDelete: Cascade)
+  
+  type         String
+  description  String
+  fileUrl      String?
+  isMissing    Boolean  @default(false)
+}
+

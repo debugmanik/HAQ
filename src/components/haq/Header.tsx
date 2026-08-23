@@ -46,6 +46,17 @@ export function Header() {
               Guided Interview
             </Link>
 
+            <Link 
+              href="/assistant" 
+              className="flex items-center gap-1 text-xs font-bold text-navy bg-navy-light/10 px-2 py-1 rounded-md hover:bg-navy-light/20 transition-colors"
+            >
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-navy opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-navy"></span>
+              </span>
+              HAQ AI
+            </Link>
+
             {hasSession && (
               <Link 
                 href="/result" 
