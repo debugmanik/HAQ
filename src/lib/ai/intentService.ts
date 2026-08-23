@@ -27,30 +27,17 @@ If yes, provide a concise, supportive response asking if they are safe and advis
     }
   };
 
-  try {
-    const dangerRes = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: dangerPrompt,
-      config: { responseMimeType: "application/json", responseSchema: dangerSchema, temperature: 0.1 }
-    });
-
-    if (dangerRes.text) {
-      const parsed = JSON.parse(dangerRes.text);
-      if (parsed.isImmediateDanger) {
-        return {
-          isImmediateDanger: true,
-          category: "Immediate Safety Concern",
-          subCategory: "Emergency",
-          summary: "User is in immediate danger.",
-          dangerResponse: parsed.dangerResponse || "Please ensure you are in a safe place. If you are in immediate danger, dial 112 for emergency police assistance immediately."
-        };
-      }
-    }
-  } catch (e) {
+  const dangerPromise = ai.models.generateContent({
+    model: "gemini-3.6-flash",
+    contents: dangerPrompt,
+    config: { responseMimeType: "application/json", responseSchema: dangerSchema, temperature: 0.1 }
+  }).catch(e => {
     console.error("Danger detection failed", e);
-  }
+    return null;
+  });
 
-  // 2. Intent Categorization (if not already categorized or if summary is missing)
+  let catPromise: Promise<any> = Promise.resolve(null);
+  
   if (!currentState.category || currentState.category === "General Inquiry") {
     const categories = [
       "Tenant / Rental", "Consumer Complaint", "Government Scheme", "Government Service Delay",
@@ -74,28 +61,46 @@ User message: "${userMessage}"
       }
     };
 
-    try {
-      const catRes = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: categoryPrompt,
-        config: { responseMimeType: "application/json", responseSchema: categorySchema, temperature: 0.1 }
-      });
-
-      if (catRes.text) {
-        const parsed = JSON.parse(catRes.text);
-        return {
-          isImmediateDanger: false,
-          category: parsed.category,
-          subCategory: parsed.subCategory,
-          summary: parsed.summary
-        };
-      }
-    } catch (e) {
+    catPromise = ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: categoryPrompt,
+      config: { responseMimeType: "application/json", responseSchema: categorySchema, temperature: 0.1 }
+    }).catch(e => {
       console.error("Categorization failed", e);
-    }
+      return null;
+    });
   }
 
-  // If already categorized and not in danger, just return current state
+  // Run both in parallel
+  const [dangerRes, catRes] = await Promise.all([dangerPromise, catPromise]);
+
+  if (dangerRes && dangerRes.text) {
+    try {
+      const parsed = JSON.parse(dangerRes.text);
+      if (parsed.isImmediateDanger) {
+        return {
+          isImmediateDanger: true,
+          category: "Immediate Safety Concern",
+          subCategory: "Emergency",
+          summary: "User is in immediate danger.",
+          dangerResponse: parsed.dangerResponse || "Please ensure you are in a safe place. If you are in immediate danger, dial 112 for emergency police assistance immediately."
+        };
+      }
+    } catch(e) {}
+  }
+
+  if (catRes && catRes.text) {
+    try {
+      const parsed = JSON.parse(catRes.text);
+      return {
+        isImmediateDanger: false,
+        category: parsed.category,
+        subCategory: parsed.subCategory,
+        summary: parsed.summary
+      };
+    } catch(e) {}
+  }
+
   return {
     isImmediateDanger: false,
     category: currentState.category,

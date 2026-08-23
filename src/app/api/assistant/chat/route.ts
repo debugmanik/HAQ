@@ -8,6 +8,8 @@ import { extractFacts } from "@/lib/ai/extractionService";
 import { generateAdvisory } from "@/lib/ai/advisoryService";
 import { generateNextQuestion } from "@/lib/ai/questionService";
 
+export const maxDuration = 60; // Increase Vercel timeout to 60s
+
 const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey });
 
@@ -56,6 +58,8 @@ export async function POST(request: Request) {
     currentState.subCategory = intentResult.subCategory;
     currentState.summary = intentResult.summary;
 
+    let aiResponseText = "Could you provide more details?";
+
     if (!intentResult.isImmediateDanger && currentState.category && currentState.category !== "General Inquiry") {
       // STEP 2: Fact Extraction (Memory)
       const extractionResult = await extractFacts(ai, message, currentState);
@@ -70,8 +74,13 @@ export async function POST(request: Request) {
       // Update missing info
       currentState.missingInformation = extractionResult.missingInformation;
 
-      // STEP 3: Advisory & Roadmap
-      const advisoryResult = await generateAdvisory(ai, currentState);
+      // STEP 3 & 4 IN PARALLEL: Advisory & Next Question
+      const [advisoryResult, nextQuestion] = await Promise.all([
+        generateAdvisory(ai, currentState),
+        generateNextQuestion(ai, message, currentState, intentResult.isImmediateDanger, intentResult.dangerResponse)
+      ]);
+
+      // Apply Advisory
       currentState.rights = advisoryResult.rights;
       currentState.roadmap = advisoryResult.roadmap;
       currentState.nextAction = advisoryResult.nextAction;
@@ -82,6 +91,17 @@ export async function POST(request: Request) {
       } else {
         currentState.currentStep = "gathering_facts";
       }
+
+      aiResponseText = nextQuestion;
+    } else {
+      // If it's a general inquiry or danger, just get the question response
+      aiResponseText = await generateNextQuestion(
+        ai, 
+        message, 
+        currentState, 
+        intentResult.isImmediateDanger, 
+        intentResult.dangerResponse
+      );
     }
 
     // Determine readiness score
@@ -92,15 +112,6 @@ export async function POST(request: Request) {
       readinessScore = totalCount > 0 ? Math.floor((knownCount / totalCount) * 100) : 10;
       if (currentState.currentStep === "ready_for_action") readinessScore = 100;
     }
-
-    // STEP 4: Smart Question Selection
-    const aiResponseText = await generateNextQuestion(
-      ai, 
-      message, 
-      currentState, 
-      intentResult.isImmediateDanger, 
-      intentResult.dangerResponse
-    );
 
     // Save state
     const updatedCase = await prisma.aiCase.update({
