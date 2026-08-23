@@ -122,7 +122,19 @@ Output strictly as JSON matching the schema.
     });
 
     if (res.text) {
-      const parsed = JSON.parse(res.text);
+      let cleanText = res.text;
+      if (cleanText.startsWith("```json")) {
+        cleanText = cleanText.substring(7);
+      }
+      if (cleanText.startsWith("```")) {
+        cleanText = cleanText.substring(3);
+      }
+      if (cleanText.endsWith("```")) {
+        cleanText = cleanText.substring(0, cleanText.length - 3);
+      }
+      cleanText = cleanText.trim();
+
+      const parsed = JSON.parse(cleanText);
       
       if (parsed.isImmediateDanger && parsed.dangerResponse) {
         return {
@@ -159,8 +171,12 @@ Output strictly as JSON matching the schema.
         responseText: parsed.aiResponseText || "Could you provide more details?"
       };
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("State Engine failed", e);
+    return {
+      state: currentState,
+      responseText: `I'm having trouble analyzing that right now. (Debug Error: ${e.message})`
+    };
   }
 
   // Fallback
