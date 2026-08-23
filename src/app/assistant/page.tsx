@@ -81,7 +81,7 @@ export default function AssistantPage() {
       <div className="w-full md:w-1/2 flex flex-col border-r border-stone-border">
         {/* Header */}
         <div className="p-4 border-b border-stone-border flex items-center gap-4 bg-navy-light/10">
-          <Button variant="outline" size="icon" onClick={() => router.push("/")} className="h-8 w-8 rounded-full border-stone-border text-slate-muted">
+          <Button variant="outline" size="sm" onClick={() => router.push("/")} className="h-8 w-8 p-0 rounded-full border-stone-border text-slate-muted flex items-center justify-center">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -171,7 +171,7 @@ export default function AssistantPage() {
                 <div className="h-2 w-full bg-stone-border/40 rounded-full overflow-hidden">
                   <div 
                     className={`h-full transition-all duration-700 ${isReady ? 'bg-green-600' : 'bg-navy'}`} 
-                    style={{ width: \`\${caseState?.readinessScore || 0}%\` }}
+                    style={{ width: `${caseState?.readinessScore || 0}%` }}
                   />
                 </div>
                 <p className="text-[10px] text-slate-muted italic pt-1">
