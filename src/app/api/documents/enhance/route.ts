@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
-const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+const apiKey = process.env.GROK_API_KEY || process.env.OPENAI_API_KEY;
 
 export async function POST(request: Request) {
   try {
@@ -59,7 +59,7 @@ ${senderName || "Aggrieved Citizen"}`;
       return NextResponse.json({ enhancedText: offlineEnhanced, isOfflineFallback: true });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new OpenAI({ apiKey, baseURL: "https://api.x.ai/v1" });
 
     const systemInstruction = `You are HAQ AI Legal Drafter, an expert Indian legal drafting assistant.
 Your task is to transform raw, unstructured citizen complaints or informal grievance notes into an authoritative, highly professional, print-ready Indian Legal Demand Notice or Statutory Representation.
@@ -84,16 +84,16 @@ Recipient: ${recipientName || "The Respondent / Opposite Party"}
 RAW GRIEVANCE TEXT:
 "${rawText}"`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        temperature: 0.2,
-      }
+    const response = await ai.chat.completions.create({
+      model: "grok-2-latest",
+      messages: [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.2,
     });
 
-    const enhancedText = response.text?.trim() || "";
+    const enhancedText = response.choices[0]?.message?.content?.trim() || "";
 
     return NextResponse.json({ enhancedText, isOfflineFallback: false });
 

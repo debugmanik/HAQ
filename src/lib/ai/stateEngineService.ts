@@ -1,9 +1,9 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import OpenAI from "openai";
 import { EliteCaseState, RightsInfo, RoadmapStep, NextAction, FactValue } from "./types";
 import { getRequiredFieldsForCategory, CaseFieldSchema } from "./caseSchemas";
 
 export async function processCaseStateSinglePass(
-  ai: GoogleGenAI, 
+  ai: OpenAI, 
   userMessage: string, 
   currentState: EliteCaseState
 ): Promise<{ 
@@ -20,6 +20,71 @@ export async function processCaseStateSinglePass(
   const currentCategory = currentState.category || "Unknown";
   const requiredFields = getRequiredFieldsForCategory(currentCategory);
   
+  const megaSchema = {
+    type: "object",
+    properties: {
+      isImmediateDanger: { type: "boolean" },
+      dangerResponse: { type: "string", description: "Null if false" },
+      category: { type: "string", description: "Null if unknown" },
+      subCategory: { type: "string", description: "Null if unknown" },
+      summary: { type: "string", description: "Null if unknown" },
+      newFacts: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            value: { type: "string", description: "Null if unknown" },
+            status: { type: "string", enum: ["known", "yes", "no", "unknown"] }
+          }
+        },
+        description: "Array of newly extracted facts matching the required fields schema."
+      },
+      acknowledgment: {
+        type: "string",
+        description: "A short 1-sentence acknowledgment of what the user just said. NEVER ask a question here."
+      },
+      rights: {
+        type: "object",
+        description: "Null if not enough info",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          actions: { type: "array", items: { type: "string" } },
+          evidence: { type: "array", items: { type: "string" } },
+          source: { 
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              url: { type: "string" }
+            }
+          }
+        }
+      },
+      roadmap: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            status: { type: "string", enum: ["completed", "current", "pending"] },
+            title: { type: "string" },
+            description: { type: "string" }
+          }
+        }
+      },
+      nextAction: {
+        type: "object",
+        description: "Null if not ready",
+        properties: {
+          title: { type: "string" },
+          type: { type: "string", enum: ["generate_document", "open_portal", "call_helpline", "wait", "gather_evidence", "safety_check"] },
+          url: { type: "string", description: "Null if none" }
+        }
+      }
+    }
+  };
+
   const megaPrompt = `
 You are HAQ, an elite, empathetic Civic and Legal Assistant for India.
 You must extract facts from the user's latest message, categorize the case, and formulate a brief acknowledgment.
@@ -32,114 +97,50 @@ Summary: ${currentState.summary || "None"}
 ALREADY KNOWN FACTS:
 ${JSON.stringify(currentState.facts, null, 2)}
 
-REQUIRED FIELDS SCHEMA (Use these exactly if extracting new facts):
+REQUIRED FIELDS:
 ${JSON.stringify(requiredFields.map(f => f.id))}
 
 USER'S NEW MESSAGE:
 "${userMessage}"
 
 INSTRUCTIONS:
-1. Detect Language: Use the user's exact language/script (e.g. Hindi, Hinglish, English) for your acknowledgment.
-2. Fact Extraction: Extract ANY relevant facts from the user's message that match the REQUIRED FIELDS SCHEMA. 
+1. Detect Language: Use the user's exact language/script for your acknowledgment.
+2. Fact Extraction: Extract relevant facts that match the REQUIRED FIELDS.
    - Set status to "known", "yes", "no", or "unknown".
-   - Even if the user says "I don't know", extract it with status "unknown".
-   - If they say "no", extract it with status "no".
-3. Acknowledgment: Write a very short (1 sentence) acknowledgment of the specific facts the user just provided. DO NOT ASK ANY QUESTIONS in this acknowledgment. Example: "Got it — ₹50,000 recorded and no reason provided."
+3. Acknowledgment: Write a very short (1 sentence) acknowledgment of the specific facts the user just provided. DO NOT ASK ANY QUESTIONS in this acknowledgment.
 4. Categorization: If Category is Unknown, classify it into one of: ${categories.join(", ")}. Provide a Sub-Category and a 1-sentence Summary.
 5. Rights & Roadmap: If the user has provided a lot of information, generate a basic rights analysis and roadmap.
 
-Output strictly as JSON matching the schema.
+OUTPUT STRICTLY AS JSON MATCHING THIS SCHEMA:
+${JSON.stringify(megaSchema, null, 2)}
   `;
 
-  const megaSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-      isImmediateDanger: { type: Type.BOOLEAN },
-      dangerResponse: { type: Type.STRING, nullable: true },
-      category: { type: Type.STRING, nullable: true },
-      subCategory: { type: Type.STRING, nullable: true },
-      summary: { type: Type.STRING, nullable: true },
-      newFacts: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING },
-            value: { type: Type.STRING, nullable: true },
-            status: { type: Type.STRING, enum: ["known", "yes", "no", "unknown"] }
-          }
-        },
-        description: "Array of newly extracted facts matching the required fields schema."
-      },
-      acknowledgment: {
-        type: Type.STRING,
-        description: "A short 1-sentence acknowledgment of what the user just said. NEVER ask a question here."
-      },
-      rights: {
-        type: Type.OBJECT,
-        nullable: true,
-        properties: {
-          title: { type: Type.STRING },
-          description: { type: Type.STRING },
-          actions: { type: Type.ARRAY, items: { type: Type.STRING } },
-          evidence: { type: Type.ARRAY, items: { type: Type.STRING } },
-          source: { 
-            type: Type.OBJECT, 
-            nullable: true,
-            properties: {
-              name: { type: Type.STRING },
-              url: { type: Type.STRING }
-            }
-          }
-        }
-      },
-      roadmap: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING },
-            status: { type: Type.STRING, enum: ["completed", "current", "pending"] },
-            title: { type: Type.STRING },
-            description: { type: Type.STRING }
-          }
-        }
-      },
-      nextAction: {
-        type: Type.OBJECT,
-        nullable: true,
-        properties: {
-          title: { type: Type.STRING },
-          type: { type: Type.STRING, enum: ["generate_document", "open_portal", "call_helpline", "wait", "gather_evidence", "safety_check"] },
-          url: { type: Type.STRING, nullable: true }
-        }
-      }
-    }
-  };
-
-  const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-flash-lite"];
-  let res: any = null;
+  const modelsToTry = ["grok-2-latest", "grok-beta"];
+  let rawJsonOutput: string | null = null;
   let errorMsg = "Unknown error";
 
   for (const modelName of modelsToTry) {
     try {
       console.log(`[StateEngine] Trying model: ${modelName}`);
-      res = await ai.models.generateContent({
+      const res = await ai.chat.completions.create({
         model: modelName,
-        contents: megaPrompt,
-        config: { responseMimeType: "application/json", responseSchema: megaSchema, temperature: 0.1 }
+        messages: [{ role: "user", content: megaPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.1
       });
-      if (res && res.text) break;
+      if (res && res.choices && res.choices[0].message.content) {
+        rawJsonOutput = res.choices[0].message.content;
+        break;
+      }
     } catch (e: any) {
       console.warn(`[StateEngine] Model ${modelName} failed:`, e.message);
       errorMsg = e.message;
-      // Continue to next model
     }
   }
 
   try {
-    if (res && res.text) {
-      let cleanText = res.text;
+    if (rawJsonOutput) {
+      let cleanText = rawJsonOutput;
       if (cleanText.startsWith("```json")) cleanText = cleanText.substring(7);
       if (cleanText.startsWith("```")) cleanText = cleanText.substring(3);
       if (cleanText.endsWith("```")) cleanText = cleanText.substring(0, cleanText.length - 3);
@@ -154,7 +155,6 @@ Output strictly as JSON matching the schema.
         };
       }
 
-      // Step 2: Merge Facts
       const updatedFacts = { ...currentState.facts };
       if (parsed.newFacts && Array.isArray(parsed.newFacts)) {
         for (const fact of parsed.newFacts) {
@@ -172,42 +172,33 @@ Output strictly as JSON matching the schema.
       const activeCategory = parsed.category || currentCategory;
       const schemaFields = getRequiredFieldsForCategory(activeCategory);
 
-      // Step 3: Compute Missing Fields
       const missingFields: CaseFieldSchema[] = [];
       const uiMissingFieldNames: string[] = [];
       
       for (const field of schemaFields) {
-        // If it's not in updatedFacts at all, it's missing.
-        // If it is in updatedFacts, it is NO LONGER missing (even if "no" or "unknown")
         if (!updatedFacts[field.id]) {
           missingFields.push(field);
           uiMissingFieldNames.push(field.id.replace(/_/g, " "));
         }
       }
 
-      // Sort missing fields by priority
       missingFields.sort((a, b) => b.priority - a.priority);
 
       let finalResponseText = parsed.acknowledgment || "Got it.";
       let nextQuestionId: string | null = null;
       let nextQuestionText: string | null = null;
 
-      // Filter out fields we have already asked about (to prevent loops, just in case, though they shouldn't be missing if answered)
       const unaskedMissingFields = missingFields.filter(f => !currentState.askedQuestions.includes(f.id));
 
       if (unaskedMissingFields.length > 0) {
-        // Pick the top priority missing field
         const nextField = unaskedMissingFields[0];
         nextQuestionId = nextField.id;
         nextQuestionText = nextField.questionText;
         
         finalResponseText = `${finalResponseText}\n\n${nextQuestionText}`;
       } else if (missingFields.length > 0) {
-        // We have asked about everything that is missing, but the user hasn't answered them.
-        // We should stop asking to avoid loops, and move to ready state.
         finalResponseText = `${finalResponseText}\n\nI think I have enough information to analyze your case now.`;
       } else {
-        // Nothing is missing
         finalResponseText = `${finalResponseText}\n\nI have gathered all the necessary facts. I will now analyze your case.`;
       }
 
@@ -247,7 +238,6 @@ Output strictly as JSON matching the schema.
     };
   }
 
-  // Fallback
   return {
     state: currentState,
     responseText: `I'm having trouble analyzing that right now. (API Error: ${errorMsg})`
