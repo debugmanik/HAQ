@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
@@ -6,13 +6,34 @@ const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey });
 
 import { processCaseStateSinglePass } from "../src/lib/ai/stateEngineService";
-import { INITIAL_ELITE_STATE } from "../src/lib/ai/types";
+import { INITIAL_ELITE_STATE, EliteCaseState } from "../src/lib/ai/types";
 
 async function main() {
-  console.log("Testing State Engine...");
+  console.log("Testing State Engine Repetition Bug Fix...\n");
   try {
-    const res = await processCaseStateSinglePass(ai, "My landlord won't return my deposit", INITIAL_ELITE_STATE);
-    console.log("Result:", JSON.stringify(res, null, 2));
+    let currentState: EliteCaseState = { ...INITIAL_ELITE_STATE };
+    
+    const messages = [
+      "My landlord won't return my deposit",
+      "yes",
+      "delhi",
+      "no reason",
+      "yes, 50000",
+      "rohini delhi, 30000 rent"
+    ];
+
+    for (const msg of messages) {
+      console.log(`\n\nUSER: "${msg}"`);
+      console.log(`Current askedQuestions:`, currentState.askedQuestions);
+      console.log("Processing...");
+      
+      const res = await processCaseStateSinglePass(ai, msg, currentState);
+      currentState = res.state;
+      
+      console.log(`AI: "${res.responseText}"`);
+      console.log(`Extracted Facts:`, Object.keys(currentState.facts).map(k => `${k}: ${currentState.facts[k].value} (${currentState.facts[k].status})`));
+      console.log(`Missing Info:`, currentState.missingInformation);
+    }
   } catch (e: any) {
     console.error("Test failed:", e.message);
   }

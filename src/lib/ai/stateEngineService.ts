@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { EliteCaseState, RightsInfo, RoadmapStep, NextAction } from "./types";
+import { EliteCaseState, RightsInfo, RoadmapStep, NextAction, FactValue } from "./types";
+import { getRequiredFieldsForCategory, CaseFieldSchema } from "./caseSchemas";
 
 export async function processCaseStateSinglePass(
   ai: GoogleGenAI, 
@@ -16,29 +17,36 @@ export async function processCaseStateSinglePass(
     "Land / Property", "Identity / Documentation", "Public Services", "Document Understanding", "General Inquiry"
   ];
 
+  const currentCategory = currentState.category || "Unknown";
+  const requiredFields = getRequiredFieldsForCategory(currentCategory);
+  
   const megaPrompt = `
-You are HAQ, an elite, empathetic, lightning-fast Civic and Legal Assistant for India.
-You must analyze the user's latest message, update their case file, and generate your direct response.
+You are HAQ, an elite, empathetic Civic and Legal Assistant for India.
+You must extract facts from the user's latest message, categorize the case, and formulate a brief acknowledgment.
 
 CURRENT CASE FILE:
-Category: ${currentState.category || "Unknown"}
+Category: ${currentCategory}
 Sub-Category: ${currentState.subCategory || "Unknown"}
 Summary: ${currentState.summary || "None"}
-Known Facts: ${JSON.stringify(currentState.facts)}
-Previously Missing Info: ${JSON.stringify(currentState.missingInformation)}
-Evidence: ${JSON.stringify(currentState.evidenceReady)}
+
+ALREADY KNOWN FACTS:
+${JSON.stringify(currentState.facts, null, 2)}
+
+REQUIRED FIELDS SCHEMA (Use these exactly if extracting new facts):
+${JSON.stringify(requiredFields.map(f => f.id))}
 
 USER'S NEW MESSAGE:
 "${userMessage}"
 
 INSTRUCTIONS:
-1. Detect Language: Respond in the exact language/script the user used (e.g. Hinglish, Hindi, English).
-2. Intent & Danger: If the user is in immediate physical danger, set 'isImmediateDanger' to true and formulate a 'dangerResponse' telling them to call 112.
-3. Categorization: If the Category is Unknown or General Inquiry, classify it into one of: ${categories.join(", ")}. Provide a Sub-Category and a 1-sentence Summary.
-4. Facts & Missing Info: Extract any NEW facts provided in the message. Identify up to 3 CRITICAL missing facts still needed (do not ask for things already known).
-5. Advisory & Roadmap: Generate applicable rights (with a real source like india.gov.in) and a 3-5 step roadmap. 
-6. Next Action: Decide the next best action.
-7. Response Formulation: Write your conversational reply. Acknowledge what they said. If there is missing info, ask for the SINGLE most important missing fact. If none, tell them they are ready to proceed. Keep it to 1-2 short sentences.
+1. Detect Language: Use the user's exact language/script (e.g. Hindi, Hinglish, English) for your acknowledgment.
+2. Fact Extraction: Extract ANY relevant facts from the user's message that match the REQUIRED FIELDS SCHEMA. 
+   - Set status to "known", "yes", "no", or "unknown".
+   - Even if the user says "I don't know", extract it with status "unknown".
+   - If they say "no", extract it with status "no".
+3. Acknowledgment: Write a very short (1 sentence) acknowledgment of the specific facts the user just provided. DO NOT ASK ANY QUESTIONS in this acknowledgment. Example: "Got it — ₹50,000 recorded and no reason provided."
+4. Categorization: If Category is Unknown, classify it into one of: ${categories.join(", ")}. Provide a Sub-Category and a 1-sentence Summary.
+5. Rights & Roadmap: If the user has provided a lot of information, generate a basic rights analysis and roadmap.
 
 Output strictly as JSON matching the schema.
   `;
@@ -52,17 +60,20 @@ Output strictly as JSON matching the schema.
       subCategory: { type: Type.STRING, nullable: true },
       summary: { type: Type.STRING, nullable: true },
       newFacts: {
-        type: Type.OBJECT,
-        description: "Key-value pairs of newly extracted facts (strings, numbers, booleans)."
-      },
-      missingInformation: {
         type: Type.ARRAY,
-        items: { type: Type.STRING },
-        description: "1 to 3 critical pieces of info still needed."
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            value: { type: Type.STRING, nullable: true },
+            status: { type: Type.STRING, enum: ["known", "yes", "no", "unknown"] }
+          }
+        },
+        description: "Array of newly extracted facts matching the required fields schema."
       },
-      evidenceReady: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
+      acknowledgment: {
+        type: Type.STRING,
+        description: "A short 1-sentence acknowledgment of what the user just said. NEVER ask a question here."
       },
       rights: {
         type: Type.OBJECT,
@@ -102,14 +113,6 @@ Output strictly as JSON matching the schema.
           type: { type: Type.STRING, enum: ["generate_document", "open_portal", "call_helpline", "wait", "gather_evidence", "safety_check"] },
           url: { type: Type.STRING, nullable: true }
         }
-      },
-      confidence: {
-        type: Type.STRING,
-        enum: ["high", "medium", "low"]
-      },
-      aiResponseText: {
-        type: Type.STRING,
-        description: "The actual conversational text you will say back to the user."
       }
     }
   };
@@ -123,15 +126,9 @@ Output strictly as JSON matching the schema.
 
     if (res.text) {
       let cleanText = res.text;
-      if (cleanText.startsWith("```json")) {
-        cleanText = cleanText.substring(7);
-      }
-      if (cleanText.startsWith("```")) {
-        cleanText = cleanText.substring(3);
-      }
-      if (cleanText.endsWith("```")) {
-        cleanText = cleanText.substring(0, cleanText.length - 3);
-      }
+      if (cleanText.startsWith("\`\`\`json")) cleanText = cleanText.substring(7);
+      if (cleanText.startsWith("\`\`\`")) cleanText = cleanText.substring(3);
+      if (cleanText.endsWith("\`\`\`")) cleanText = cleanText.substring(0, cleanText.length - 3);
       cleanText = cleanText.trim();
 
       const parsed = JSON.parse(cleanText);
@@ -143,21 +140,78 @@ Output strictly as JSON matching the schema.
         };
       }
 
-      // Merge Facts & Evidence
-      const updatedFacts = { ...currentState.facts, ...(parsed.newFacts || {}) };
-      
-      const newEv = (parsed.evidenceReady || []).filter((e: string) => !currentState.evidenceReady.includes(e));
-      const updatedEvidence = [...currentState.evidenceReady, ...newEv];
+      // Step 2: Merge Facts
+      const updatedFacts = { ...currentState.facts };
+      if (parsed.newFacts && Array.isArray(parsed.newFacts)) {
+        for (const fact of parsed.newFacts) {
+          if (fact.id) {
+            updatedFacts[fact.id] = {
+              value: fact.value || fact.status,
+              source: "user",
+              confidence: "high",
+              status: fact.status as any
+            };
+          }
+        }
+      }
 
-      const isReadyForAction = (parsed.missingInformation || []).length === 0 && Object.keys(updatedFacts).length > 0;
+      const activeCategory = parsed.category || currentCategory;
+      const schemaFields = getRequiredFieldsForCategory(activeCategory);
+
+      // Step 3: Compute Missing Fields
+      const missingFields: CaseFieldSchema[] = [];
+      const uiMissingFieldNames: string[] = [];
+      
+      for (const field of schemaFields) {
+        // If it's not in updatedFacts at all, it's missing.
+        // If it is in updatedFacts, it is NO LONGER missing (even if "no" or "unknown")
+        if (!updatedFacts[field.id]) {
+          missingFields.push(field);
+          uiMissingFieldNames.push(field.id.replace(/_/g, " "));
+        }
+      }
+
+      // Sort missing fields by priority
+      missingFields.sort((a, b) => b.priority - a.priority);
+
+      let finalResponseText = parsed.acknowledgment || "Got it.";
+      let nextQuestionId: string | null = null;
+      let nextQuestionText: string | null = null;
+
+      // Filter out fields we have already asked about (to prevent loops, just in case, though they shouldn't be missing if answered)
+      const unaskedMissingFields = missingFields.filter(f => !currentState.askedQuestions.includes(f.id));
+
+      if (unaskedMissingFields.length > 0) {
+        // Pick the top priority missing field
+        const nextField = unaskedMissingFields[0];
+        nextQuestionId = nextField.id;
+        nextQuestionText = nextField.questionText;
+        
+        finalResponseText = `${finalResponseText}\n\n${nextQuestionText}`;
+      } else if (missingFields.length > 0) {
+        // We have asked about everything that is missing, but the user hasn't answered them.
+        // We should stop asking to avoid loops, and move to ready state.
+        finalResponseText = `${finalResponseText}\n\nI think I have enough information to analyze your case now.`;
+      } else {
+        // Nothing is missing
+        finalResponseText = `${finalResponseText}\n\nI have gathered all the necessary facts. I will now analyze your case.`;
+      }
+
+      const newAskedQuestions = [...currentState.askedQuestions];
+      if (nextQuestionId && !newAskedQuestions.includes(nextQuestionId)) {
+        newAskedQuestions.push(nextQuestionId);
+      }
+
+      const isReadyForAction = missingFields.length === 0 || unaskedMissingFields.length === 0;
       
       const updatedState: EliteCaseState = {
-        category: parsed.category || currentState.category,
+        category: activeCategory,
         subCategory: parsed.subCategory || currentState.subCategory,
         summary: parsed.summary || currentState.summary,
         facts: updatedFacts,
-        missingInformation: parsed.missingInformation || [],
-        evidenceReady: updatedEvidence,
+        missingInformation: uiMissingFieldNames,
+        evidenceReady: currentState.evidenceReady,
+        askedQuestions: newAskedQuestions,
         rights: parsed.rights || currentState.rights,
         roadmap: parsed.roadmap || currentState.roadmap,
         nextAction: parsed.nextAction || currentState.nextAction,
@@ -168,7 +222,7 @@ Output strictly as JSON matching the schema.
 
       return {
         state: updatedState,
-        responseText: parsed.aiResponseText || "Could you provide more details?"
+        responseText: finalResponseText
       };
     }
   } catch (e: any) {

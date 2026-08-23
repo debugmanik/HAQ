@@ -22,14 +22,22 @@ export type RightsInfo = {
   } | null;
 };
 
+export type FactValue = {
+  value: string | number | boolean | null;
+  source: string;
+  confidence: "high" | "medium" | "low";
+  status: "known" | "yes" | "no" | "unknown";
+};
+
 export type EliteCaseState = {
   category: string | null;
   subCategory: string | null;
   summary: string | null;
   jurisdiction: string | null;
-  facts: Record<string, string | number | boolean>;
-  missingInformation: string[];
+  facts: Record<string, FactValue>;
+  missingInformation: string[]; // These are just strings for UI display
   evidenceReady: string[];
+  askedQuestions: string[]; // Keep track of fields we have already asked about
   currentStep: string | null;
   nextAction: NextAction | null;
   confidence: "high" | "medium" | "low" | null;
@@ -46,6 +54,7 @@ export const INITIAL_ELITE_STATE: EliteCaseState = {
   facts: {},
   missingInformation: [],
   evidenceReady: [],
+  askedQuestions: [],
   currentStep: "intent_detection",
   nextAction: null,
   confidence: null,

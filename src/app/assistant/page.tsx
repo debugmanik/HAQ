@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, AlertCircle, CheckCircle2, ChevronRight, FileText, ArrowLeft, Loader2, Info, ArrowRightCircle } from "lucide-react";
+import { Send, AlertCircle, CheckCircle2, ChevronRight, FileText, ArrowLeft, Loader2, Info, ArrowRightCircle, XCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -185,10 +185,24 @@ export default function AssistantPage() {
                 <div className="space-y-2 pt-2 border-t border-stone-border">
                   <p className="text-xs font-semibold text-slate-muted uppercase tracking-wider">Known Facts</p>
                   <ul className="space-y-1">
-                    {Object.entries(eliteState.facts).map(([key, val]) => (
+                    {Object.entries(eliteState.facts).map(([key, val]: [string, any]) => (
                       <li key={key} className="text-sm flex items-start gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}: <span className="font-medium">{String(val)}</span></span>
+                        {val.status === 'no' ? (
+                          <XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                        ) : val.status === 'unknown' ? (
+                          <HelpCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                        )}
+                        <span className="capitalize text-slate-700">
+                          {key.replace(/_/g, ' ')}: 
+                          <span className="font-medium text-foreground ml-1">
+                            {val.status === 'no' ? 'No' : 
+                             val.status === 'unknown' ? 'Unknown' : 
+                             val.status === 'yes' ? 'Yes' : 
+                             String(val.value)}
+                          </span>
+                        </span>
                       </li>
                     ))}
                   </ul>
