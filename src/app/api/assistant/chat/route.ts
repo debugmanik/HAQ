@@ -1,64 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { SCHEMAS } from "@/lib/schemas";
+import { GoogleGenAI } from "@google/genai";
+import { EliteCaseState, INITIAL_ELITE_STATE } from "@/lib/ai/types";
+import { detectIntentAndDanger } from "@/lib/ai/intentService";
+import { extractFacts } from "@/lib/ai/extractionService";
+import { generateAdvisory } from "@/lib/ai/advisoryService";
+import { generateNextQuestion } from "@/lib/ai/questionService";
 
-// Heuristic matcher for offline / fallback categorization
-function matchCategoryOffline(text: string): string {
-  const lower = text.toLowerCase();
-  if (lower.includes("scholarship") || lower.includes("stipend") || lower.includes("fellowship") || lower.includes("matric") || lower.includes("pension") || lower.includes("welfare")) {
-    return "SCHOLARSHIP_DELAY";
-  }
-  if (lower.includes("landlord") || lower.includes("tenant") || lower.includes("deposit") || lower.includes("rent") || lower.includes("flat") || lower.includes("eviction") || lower.includes("lease")) {
-    return "TENANCY_DISPUTE";
-  }
-  if (lower.includes("garbage") || lower.includes("road") || lower.includes("pothole") || lower.includes("drain") || lower.includes("sanitation") || lower.includes("municipal") || lower.includes("water supply")) {
-    return "MUNICIPAL_SANITATION";
-  }
-  if (lower.includes("refund") || lower.includes("defective") || lower.includes("amazon") || lower.includes("flipkart") || lower.includes("product") || lower.includes("fraud") || lower.includes("invoice") || lower.includes("broken")) {
-    return "CONSUMER_FRAUD";
-  }
-  if (lower.includes("harass") || lower.includes("posh") || lower.includes("abuse") || lower.includes("threat") || lower.includes("stalk") || lower.includes("fir") || lower.includes("assault")) {
-    return "SEXUAL_HARASSMENT_ABUSE";
-  }
-  return "GENERAL";
-}
-
-// Heuristic field extractor for offline / fallback mode
-function extractFieldsOffline(message: string, schemaKey: string, currentData: Record<string, any>): Record<string, any> {
-  const extracted: Record<string, any> = {};
-  const lower = message.toLowerCase();
-
-  if (schemaKey === "TENANCY_DISPUTE") {
-    const depositMatch = message.match(/(?:rs\.?|inr|₹|\s)(\d{3,7})/i);
-    if (depositMatch && !currentData.depositAmount) extracted.depositAmount = `₹${depositMatch[1]}`;
-    if ((lower.includes("yes") || lower.includes("signed") || lower.includes("registered")) && currentData.leaseAgreement === undefined) extracted.leaseAgreement = true;
-    if ((lower.includes("no") || lower.includes("verbal")) && currentData.leaseAgreement === undefined) extracted.leaseAgreement = false;
-    if (lower.includes("delhi") || lower.includes("mumbai") || lower.includes("bengaluru") || lower.includes("bangalore") || lower.includes("pune") || lower.includes("hyderabad")) {
-      if (!currentData.state) extracted.state = message;
-    }
-  } else if (schemaKey === "SCHOLARSHIP_DELAY") {
-    if (lower.includes("post-matric") || lower.includes("nsp") || lower.includes("merit")) {
-      if (!currentData.scholarshipName) extracted.scholarshipName = message;
-    }
-    const durationMatch = message.match(/(\d+\s*(?:month|day|week|year)s?)/i);
-    if (durationMatch && !currentData.durationDelayed) extracted.durationDelayed = durationMatch[1];
-  } else if (schemaKey === "CONSUMER_FRAUD") {
-    const amountMatch = message.match(/(?:rs\.?|inr|₹|\s)(\d{3,7})/i);
-    if (amountMatch && !currentData.disputeAmount) extracted.disputeAmount = `₹${amountMatch[1]}`;
-    if (!currentData.productService && (lower.includes("phone") || lower.includes("laptop") || lower.includes("order") || lower.includes("item"))) {
-      extracted.productService = message;
-    }
-  }
-
-  return extracted;
-}
+const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+const ai = new GoogleGenAI({ apiKey });
 
 export async function POST(request: Request) {
   try {
     const { message, caseId } = await request.json();
-    if (!message || !message.trim()) {
+    if (!message) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
@@ -68,312 +24,108 @@ export async function POST(request: Request) {
       sessionId = crypto.randomUUID();
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
-    const hasAiKey = !!apiKey && apiKey.length > 5;
-    let ai: GoogleGenAI | null = null;
-    if (hasAiKey) {
-      try {
-        ai = new GoogleGenAI({ apiKey });
-      } catch (err) {
-        console.warn("GoogleGenAI client init error:", err);
-      }
-    }
-
-    // 1. Load or Create Case (with DB fallback)
-    let aiCase: any = null;
-    let isDbConnected = false;
-
-    try {
-      if (caseId) {
-        aiCase = await prisma.aiCase.findUnique({
-          where: { id: caseId },
-          include: { messages: { orderBy: { createdAt: 'asc' } } }
-        });
-      }
-      
-      if (!aiCase) {
-        aiCase = await prisma.aiCase.create({
-          data: {
-            sessionId,
-            category: null,
-            extractedData: { _retries: {} }
-          },
-          include: { messages: true }
-        });
-      }
-
-      await prisma.aiCaseMessage.create({
-        data: { aiCaseId: aiCase.id, role: "user", content: message }
+    // 1. Load or Create Case
+    let aiCase;
+    if (caseId) {
+      aiCase = await prisma.aiCase.findUnique({
+        where: { id: caseId },
+        include: { messages: { orderBy: { createdAt: 'asc' } } }
       });
-      isDbConnected = true;
-    } catch (dbErr) {
-      console.warn("Database unavailable, operating with session memory:", dbErr);
-      aiCase = {
-        id: caseId || `case-${Date.now()}`,
-        sessionId,
-        category: null,
-        extractedData: { _retries: {} },
-        readinessScore: 0,
-        status: "gathering_context",
-        messages: [{ id: `msg-${Date.now()}`, role: "user", content: message }]
-      };
+      if (!aiCase) return NextResponse.json({ error: "Case not found" }, { status: 404 });
+    } else {
+      aiCase = await prisma.aiCase.create({
+        data: {
+          sessionId,
+          category: null,
+          extractedData: INITIAL_ELITE_STATE as any
+        },
+        include: { messages: true }
+      });
     }
 
-    // 1.5 Categorization
-    let currentCategoryKey = aiCase.category;
-    if (!currentCategoryKey) {
-      if (ai) {
-        const categorySchema: Schema = {
-          type: Type.OBJECT,
-          properties: {
-            categoryKey: {
-              type: Type.STRING,
-              enum: Object.keys(SCHEMAS),
-              description: "The matched category key based on the user issue"
-            }
-          }
-        };
+    // Save user message
+    await prisma.aiCaseMessage.create({
+      data: { aiCaseId: aiCase.id, role: "user", content: message }
+    });
 
-        const categorizationPrompt = `
-You are a civic legal categorization engine. Match the user's issue to one of the following schema keys:
-${Object.keys(SCHEMAS).join(", ")}
-If it doesn't clearly fit, return GENERAL.
-User's message: "${message}"
-        `;
+    let currentState = (aiCase.extractedData || INITIAL_ELITE_STATE) as EliteCaseState;
 
-        try {
-          const catRes = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: categorizationPrompt,
-            config: {
-              responseMimeType: "application/json",
-              responseSchema: categorySchema,
-              temperature: 0.1
-            }
-          });
-          
-          if (catRes.text) {
-            const parsed = JSON.parse(catRes.text);
-            currentCategoryKey = parsed.categoryKey || matchCategoryOffline(message);
-          } else {
-            currentCategoryKey = matchCategoryOffline(message);
-          }
-        } catch (e) {
-          console.error("AI Categorization error, using heuristic:", e);
-          currentCategoryKey = matchCategoryOffline(message);
-        }
+    // STEP 1: Intent & Safety Override
+    const intentResult = await detectIntentAndDanger(ai, message, currentState);
+    currentState.category = intentResult.category;
+    currentState.subCategory = intentResult.subCategory;
+    currentState.summary = intentResult.summary;
+
+    if (!intentResult.isImmediateDanger && currentState.category && currentState.category !== "General Inquiry") {
+      // STEP 2: Fact Extraction (Memory)
+      const extractionResult = await extractFacts(ai, message, currentState);
+      
+      // Merge new facts
+      currentState.facts = { ...currentState.facts, ...extractionResult.newFacts };
+      
+      // Merge evidence
+      const newEvidence = extractionResult.evidenceReady.filter(e => !currentState.evidenceReady.includes(e));
+      currentState.evidenceReady = [...currentState.evidenceReady, ...newEvidence];
+      
+      // Update missing info
+      currentState.missingInformation = extractionResult.missingInformation;
+
+      // STEP 3: Advisory & Roadmap
+      const advisoryResult = await generateAdvisory(ai, currentState);
+      currentState.rights = advisoryResult.rights;
+      currentState.roadmap = advisoryResult.roadmap;
+      currentState.nextAction = advisoryResult.nextAction;
+      currentState.confidence = advisoryResult.confidence;
+      
+      if (advisoryResult.isReadyForAction) {
+        currentState.currentStep = "ready_for_action";
       } else {
-        currentCategoryKey = matchCategoryOffline(message);
-      }
-
-      // Update case category
-      aiCase.category = currentCategoryKey;
-      if (isDbConnected) {
-        try {
-          aiCase = await prisma.aiCase.update({
-            where: { id: aiCase.id },
-            data: { category: currentCategoryKey },
-            include: { messages: true }
-          });
-        } catch {}
+        currentState.currentStep = "gathering_facts";
       }
     }
 
-    const ACTIVE_SCHEMA = SCHEMAS[currentCategoryKey as string] || SCHEMAS.GENERAL;
-    const currentExtractedData = (aiCase.extractedData || {}) as Record<string, any>;
-    const retries = currentExtractedData._retries || {};
-
-    // 2. Extraction
-    let newlyExtracted: Record<string, any> = {};
-
-    if (ACTIVE_SCHEMA.requiredFields.length > 0) {
-      if (ai) {
-        const properties: Record<string, Schema> = {};
-        for (const field of ACTIVE_SCHEMA.requiredFields) {
-          if (!currentExtractedData[field.key]) {
-            properties[field.key] = {
-              type: field.type === "boolean" ? Type.BOOLEAN : Type.STRING,
-              description: field.label,
-              nullable: true
-            };
-          }
-        }
-
-        if (Object.keys(properties).length > 0) {
-          const extractionSchema: Schema = {
-            type: Type.OBJECT,
-            properties
-          };
-
-          const extractionPrompt = `
-You are an intent extractor for a civic legal assistant.
-Extract the relevant fields from the user's latest message. If a field is not mentioned, leave it null.
-User's message: "${message}"
-          `;
-
-          try {
-            const extractRes = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: extractionPrompt,
-              config: {
-                responseMimeType: "application/json",
-                responseSchema: extractionSchema,
-                temperature: 0.1
-              }
-            });
-
-            if (extractRes.text) {
-              newlyExtracted = JSON.parse(extractRes.text);
-            }
-          } catch (e) {
-            console.error("AI Extraction error, using heuristic:", e);
-            newlyExtracted = extractFieldsOffline(message, currentCategoryKey, currentExtractedData);
-          }
-        }
-      } else {
-        newlyExtracted = extractFieldsOffline(message, currentCategoryKey, currentExtractedData);
-      }
-    }
-
-    // Merge extracted data
-    let missingFieldToAsk = null;
-    let missingFieldLabel = "";
+    // Determine readiness score
     let readinessScore = 0;
-    let fieldsAnswered = 0;
+    if (currentState.category && currentState.category !== "General Inquiry") {
+      const knownCount = Object.keys(currentState.facts).length;
+      const totalCount = knownCount + currentState.missingInformation.length;
+      readinessScore = totalCount > 0 ? Math.floor((knownCount / totalCount) * 100) : 10;
+      if (currentState.currentStep === "ready_for_action") readinessScore = 100;
+    }
 
-    if (ACTIVE_SCHEMA.requiredFields.length > 0) {
-      for (const field of ACTIVE_SCHEMA.requiredFields) {
-        if (newlyExtracted[field.key] !== undefined && newlyExtracted[field.key] !== null) {
-          currentExtractedData[field.key] = newlyExtracted[field.key];
-        }
+    // STEP 4: Smart Question Selection
+    const aiResponseText = await generateNextQuestion(
+      ai, 
+      message, 
+      currentState, 
+      intentResult.isImmediateDanger, 
+      intentResult.dangerResponse
+    );
 
-        if (currentExtractedData[field.key] !== undefined && currentExtractedData[field.key] !== null) {
-          fieldsAnswered++;
-        } else {
-          if (!missingFieldToAsk) {
-            const currentRetries = retries[field.key] || 0;
-            if (currentRetries < 2) {
-              missingFieldToAsk = field.key;
-              missingFieldLabel = field.label;
-              retries[field.key] = currentRetries + 1;
-            } else {
-              currentExtractedData[field.key] = "SKIPPED";
-              fieldsAnswered++;
-            }
-          }
-        }
+    // Save state
+    const updatedCase = await prisma.aiCase.update({
+      where: { id: aiCase.id },
+      data: {
+        category: currentState.category,
+        extractedData: currentState as any,
+        readinessScore,
+        status: currentState.currentStep === "ready_for_action" ? "ready" : "gathering_context"
       }
-      readinessScore = Math.floor((fieldsAnswered / ACTIVE_SCHEMA.requiredFields.length) * 100);
-    } else {
-      readinessScore = 100;
-    }
+    });
 
-    currentExtractedData._retries = retries;
-
-    let newStatus = aiCase.status || "gathering_context";
-    if (readinessScore === 100) {
-      newStatus = "ready";
-    }
-
-    let updatedCase = {
-      ...aiCase,
-      category: currentCategoryKey,
-      extractedData: currentExtractedData,
-      readinessScore,
-      status: newStatus
-    };
-
-    if (isDbConnected) {
-      try {
-        updatedCase = await prisma.aiCase.update({
-          where: { id: aiCase.id },
-          data: {
-            extractedData: currentExtractedData,
-            readinessScore,
-            status: newStatus
-          }
-        });
-      } catch {}
-    }
-
-    // 3. Response Generation
-    let aiResponseText = "";
-
-    if (currentCategoryKey === "GENERAL") {
-      aiResponseText = "I can help with administrative delays, tenancy disputes, municipal issues, cyber fraud, and workplace rights. Could you provide a bit more detail about your specific legal or civic issue so I can guide you properly?";
-      updatedCase.readinessScore = 0;
-      updatedCase.status = "gathering_context";
-    } else if (newStatus === "ready") {
-      aiResponseText = `Thank you. I have gathered the necessary facts regarding your ${ACTIVE_SCHEMA.category} issue. Your evidentiary readiness score is 100%. You can now generate an official Section 6(1) RTI Application or a Formal Legal Demand Notice from the Document Studio.`;
-    } else if (missingFieldToAsk) {
-      if (ai) {
-        const genPrompt = `
-You are HAQ, an empathetic Indian civic assistant case interviewer. 
-The user is reporting an issue related to: ${ACTIVE_SCHEMA.category}.
-You need to ask them about: ${missingFieldLabel}.
-Keep it to ONE concise, polite sentence. Do not offer solutions yet.
-        `;
-        try {
-          const res = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: genPrompt,
-            config: { temperature: 0.7 }
-          });
-          aiResponseText = res.text?.trim() || `Could you please provide your ${missingFieldLabel}?`;
-        } catch {
-          aiResponseText = `Could you please provide your ${missingFieldLabel}?`;
-        }
-      } else {
-        aiResponseText = `Could you please specify your ${missingFieldLabel}?`;
-      }
-    } else {
-      aiResponseText = "I have noted that down. Is there any additional detail, reference number, or date you would like to add?";
-    }
-
-    let savedMsg: any = {
-      id: `msg-${Date.now()}`,
-      role: "assistant",
-      content: aiResponseText,
-      createdAt: new Date().toISOString()
-    };
-
-    if (isDbConnected) {
-      try {
-        savedMsg = await prisma.aiCaseMessage.create({
-          data: { aiCaseId: aiCase.id, role: "assistant", content: aiResponseText }
-        });
-      } catch {}
-    }
+    // Save assistant message
+    const savedMsg = await prisma.aiCaseMessage.create({
+      data: { aiCaseId: aiCase.id, role: "assistant", content: aiResponseText }
+    });
 
     return NextResponse.json({
       caseState: updatedCase,
       message: savedMsg,
-      schemaDetails: {
-        categoryLabel: ACTIVE_SCHEMA.category,
-        rightsNavigator: ACTIVE_SCHEMA.rightsNavigator
-      }
+      eliteState: currentState // Pass the strongly-typed state directly for UI ease
     });
 
   } catch (error: any) {
     console.error("Chat API error:", error);
-    return NextResponse.json({
-      error: error.message || "An unexpected error occurred",
-      caseState: {
-        id: `case-${Date.now()}`,
-        category: "General Civic Concern",
-        readinessScore: 30,
-        status: "gathering_context",
-        extractedData: {}
-      },
-      message: {
-        id: `msg-${Date.now()}`,
-        role: "assistant",
-        content: "I have recorded your issue. Could you please provide your city/state and any reference numbers so we can identify the correct authority?"
-      },
-      schemaDetails: {
-        categoryLabel: "General Civic Concern",
-        rightsNavigator: SCHEMAS.GENERAL.rightsNavigator
-      }
-    });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

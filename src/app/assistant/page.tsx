@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, AlertCircle, CheckCircle2, ChevronRight, FileText, ArrowLeft, Loader2, Sparkles, RotateCcw } from "lucide-react";
+import { Send, AlertCircle, CheckCircle2, ChevronRight, FileText, ArrowLeft, Loader2, Info, ArrowRightCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { EliteCaseState } from "@/lib/ai/types";
 
 type Message = {
   id: string;
@@ -22,50 +22,32 @@ type CaseState = {
   extractedData: Record<string, any>;
 };
 
-type SchemaDetails = {
-  categoryLabel: string;
-  rightsNavigator: {
-    title: string;
-    description: string;
-    sourceName: string;
-    sourceUrl: string;
-  };
-};
-
 export default function AssistantPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "init",
       role: "assistant",
-      content: "Hello! I am HAQ, your Civic & Legal Assistant. To get started, please briefly describe the issue you are facing. (e.g., 'My scholarship hasn't arrived.' or 'My landlord won't return my deposit of Rs. 50,000.')"
+      content: "Hello! I am HAQ, your Civic & Legal Assistant. To get started, please briefly describe the issue you are facing. (e.g., 'My scholarship hasn't arrived.' or 'My landlord won't return my deposit.')"
     }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [caseState, setCaseState] = useState<CaseState | null>(null);
-  const [schemaDetails, setSchemaDetails] = useState<SchemaDetails | null>(null);
+  const [eliteState, setEliteState] = useState<EliteCaseState | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+  }, [messages]);
 
-  const QUICK_PROMPTS = [
-    "My landlord has not returned my security deposit of Rs 50,000.",
-    "My post-matric scholarship application is delayed for 4 months.",
-    "Unauthorized UPI transaction of Rs 35,000 debited from my bank.",
-    "Defective mobile phone delivered from online store and refund refused."
-  ];
-
-  const handleSend = async (overrideText?: string) => {
-    const textToSend = overrideText || input;
-    if (!textToSend.trim() || isLoading) return;
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
     
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: textToSend };
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: input };
     setMessages(prev => [...prev, userMsg]);
-    if (!overrideText) setInput("");
+    setInput("");
     setIsLoading(true);
 
     try {
@@ -80,269 +62,259 @@ export default function AssistantPage() {
 
       const data = await res.json();
       
-      if (data.caseState) {
+      if (res.ok) {
         setCaseState(data.caseState);
-        try {
-          localStorage.setItem("haq_active_case_id", data.caseState.id);
-        } catch {}
-      }
-
-      if (data.message) {
         setMessages(prev => [...prev, data.message]);
+        if (data.eliteState) {
+          setEliteState(data.eliteState);
+        }
       } else {
-        setMessages(prev => [...prev, {
-          id: `msg-${Date.now()}`,
-          role: "assistant",
-          content: "I have recorded your grievance. Could you please specify your city/state and any reference numbers?"
-        }]);
-      }
-
-      if (data.schemaDetails) {
-        setSchemaDetails(data.schemaDetails);
+        console.error(data.error);
       }
     } catch (err) {
       console.error("Failed to send message", err);
-      setMessages(prev => [...prev, {
-        id: `err-${Date.now()}`,
-        role: "assistant",
-        content: "I have noted down your grievance details. Please provide your city or state to help me locate the correct public authority."
-      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResetCase = () => {
-    setMessages([
-      {
-        id: "init",
-        role: "assistant",
-        content: "Hello! I am HAQ, your Civic & Legal Assistant. To get started, please briefly describe the issue you are facing."
-      }
-    ]);
-    setCaseState(null);
-    setSchemaDetails(null);
-    setInput("");
-    try {
-      localStorage.removeItem("haq_active_case_id");
-    } catch {}
-  };
-
-  const isReady = caseState?.status === "ready" || (caseState?.readinessScore || 0) >= 80;
+  const isReady = caseState?.status === "ready";
 
   return (
-    <div className="flex flex-col lg:flex-row w-full max-w-6xl mx-auto min-h-[calc(100dvh-5rem)] border border-stone-border bg-paper rounded-lg overflow-hidden my-4 shadow-xs">
+    <div className="flex flex-col md:flex-row w-full max-w-7xl mx-auto min-h-[calc(100dvh-4rem)] bg-background">
       {/* Left Panel: The Interviewer (Chat) */}
-      <div className="w-full lg:w-1/2 flex flex-col border-b lg:border-b-0 lg:border-r border-stone-border bg-paper">
+      <div className="w-full md:w-1/2 flex flex-col border-r border-stone-border">
         {/* Header */}
-        <div className="p-4 border-b border-stone-border flex items-center justify-between bg-stone-border/20">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => router.push("/")} 
-              className="h-8 w-8 p-0 rounded-full border-stone-border text-slate-muted flex items-center justify-center cursor-pointer"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                HAQ AI Legal Assistant
-              </h1>
-              <p className="text-[10px] text-slate-muted">Interactive Case & Evidence Assessment</p>
-            </div>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetCase}
-            className="h-7 text-[11px] text-slate-muted hover:text-navy flex items-center gap-1 cursor-pointer"
-          >
-            <RotateCcw className="h-3 w-3" /> New Case
+        <div className="p-4 border-b border-stone-border flex items-center gap-4 bg-navy-light/10">
+          <Button variant="outline" size="sm" onClick={() => router.push("/")} className="h-8 w-8 p-0 rounded-full border-stone-border text-slate-muted flex items-center justify-center">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
+          <div>
+            <h1 className="text-sm font-bold text-navy uppercase tracking-wider">HAQ AI Interviewer</h1>
+            <p className="text-[10px] text-slate-muted">Gathering Context for Resolution</p>
+          </div>
         </div>
 
         {/* Chat Feed */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-paper/60 min-h-[380px] max-h-[500px] lg:max-h-[calc(100dvh-14rem)]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-paper/50">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
+              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user" 
-                  ? "bg-navy text-paper rounded-br-xs" 
-                  : "bg-paper border border-stone-border text-foreground shadow-xs rounded-bl-xs"
+                  ? "bg-navy text-white rounded-br-sm" 
+                  : "bg-white border border-stone-border text-foreground shadow-xs rounded-bl-sm"
               }`}>
                 {msg.content}
               </div>
             </div>
           ))}
-
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-paper border border-stone-border rounded-2xl rounded-bl-xs px-4 py-3 flex items-center gap-2 shadow-xs">
-                <Loader2 className="h-4 w-4 animate-spin text-navy" />
-                <span className="text-xs text-slate-muted">Analyzing case with Gemini AI...</span>
+              <div className="bg-white border border-stone-border rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-slate-muted" />
+                <span className="text-xs text-slate-muted">Analyzing case...</span>
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Suggestion Chips */}
-        {messages.length <= 2 && (
-          <div className="px-4 py-2 bg-stone-border/10 border-t border-stone-border/40 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-navy tracking-wider block">Quick test prompts:</span>
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_PROMPTS.map((prompt, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSend(prompt)}
-                  className="text-[11px] px-2.5 py-1 rounded-full bg-paper border border-stone-border text-slate-muted hover:text-navy hover:bg-stone-border/30 transition-colors text-left cursor-pointer"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Input Box */}
-        <div className="p-3 bg-paper border-t border-stone-border">
+        <div className="p-4 bg-white border-t border-stone-border">
           <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe your dispute, dates, amounts, or reply to question..."
+              placeholder="Type your response..."
               disabled={isLoading}
-              className="flex-1 h-10 bg-paper border-stone-border focus-visible:ring-navy rounded-md text-xs px-3"
+              className="flex-1 h-12 bg-paper border-stone-border focus-visible:ring-navy rounded-full px-5"
             />
             <Button 
               type="submit" 
               disabled={isLoading || !input.trim()}
-              className="h-10 px-4 rounded-md bg-navy hover:bg-navy-hover text-paper flex-shrink-0 cursor-pointer text-xs"
+              className="h-12 w-12 rounded-full bg-navy hover:bg-navy-hover text-white flex-shrink-0"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5 ml-0.5" />
             </Button>
           </form>
         </div>
       </div>
 
       {/* Right Panel: Command Center Dashboard */}
-      <div className="w-full lg:w-1/2 flex flex-col bg-paper p-6 overflow-y-auto space-y-6">
-        {/* Case Understanding Card */}
-        <div className="space-y-2">
-          <h2 className="text-xs font-bold text-navy uppercase tracking-wider">Case Understanding</h2>
-          <div className="border border-stone-border bg-paper rounded-lg p-4 shadow-xs space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-[10px] text-slate-muted uppercase tracking-wider font-semibold">Matched Category</p>
-                <p className="text-sm font-bold text-navy">
-                  {schemaDetails?.categoryLabel || (caseState?.category ? caseState.category.replace(/_/g, " ") : "Awaiting Grievance Input")}
-                </p>
+      <div className="w-full md:w-1/2 flex flex-col bg-paper p-6 overflow-y-auto">
+        <div className="space-y-8">
+          
+          {/* Case Understanding Card */}
+          <div className="space-y-3">
+            <h2 className="text-xs font-bold text-navy uppercase tracking-wider">Case Understanding</h2>
+            <div className="border border-stone-border bg-white rounded-xl p-5 shadow-xs space-y-5">
+              
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-[10px] text-slate-muted uppercase tracking-wider font-semibold">Category</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {eliteState?.category 
+                      ? (eliteState.subCategory ? `${eliteState.category} / ${eliteState.subCategory}` : eliteState.category) 
+                      : (caseState?.category === "GENERAL" ? "General Inquiry" : "Analyzing...")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-slate-muted uppercase tracking-wider font-semibold">Status</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {isReady ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse" />
+                    )}
+                    <span className="text-sm font-medium">{isReady ? "Ready for Action" : "Gathering Context"}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] text-slate-muted uppercase tracking-wider font-semibold">Status</p>
-                <div className="flex items-center gap-1.5 mt-0.5 justify-end">
-                  {isReady ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                  ) : (
-                    <div className="h-2 w-2 bg-amber-500 rounded-full animate-pulse" />
-                  )}
-                  <span className="text-xs font-semibold text-navy">
-                    {isReady ? "Ready for Action" : "Gathering Facts"}
-                  </span>
+
+              {eliteState?.summary && (
+                <div className="bg-slate-50 p-3 rounded-lg border border-stone-border">
+                  <p className="text-sm text-foreground">{eliteState.summary}</p>
+                </div>
+              )}
+
+              {/* Known Facts and Missing Info */}
+              {(eliteState && Object.keys(eliteState.facts).length > 0) && (
+                <div className="space-y-2 pt-2 border-t border-stone-border">
+                  <p className="text-xs font-semibold text-slate-muted uppercase tracking-wider">Known Facts</p>
+                  <ul className="space-y-1">
+                    {Object.entries(eliteState.facts).map(([key, val]) => (
+                      <li key={key} className="text-sm flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}: <span className="font-medium">{String(val)}</span></span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {(eliteState && eliteState.missingInformation.length > 0) && (
+                <div className="space-y-2 pt-2 border-t border-stone-border">
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Still Needed</p>
+                  <ul className="space-y-1">
+                    {eliteState.missingInformation.map((item, idx) => (
+                      <li key={idx} className="text-sm flex items-start gap-2">
+                        <div className="h-4 w-4 rounded-full border border-amber-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-slate-600 capitalize">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Readiness Score Progress */}
+              <div className="space-y-1.5 pt-2 border-t border-stone-border">
+                <div className="flex justify-between text-xs font-medium">
+                  <span className="text-slate-muted">Evidence Readiness</span>
+                  <span className={isReady ? "text-green-600 font-bold" : "text-navy"}>{caseState?.readinessScore || 0}%</span>
+                </div>
+                <div className="h-2 w-full bg-stone-border/40 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-700 ${isReady ? 'bg-green-600' : 'bg-navy'}`} 
+                    style={{ width: `${caseState?.readinessScore || 0}%` }}
+                  />
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Resolution Plan Timeline */}
+          {eliteState?.roadmap && eliteState.roadmap.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-xs font-bold text-navy uppercase tracking-wider">Resolution Plan</h2>
+              <div className="border border-stone-border bg-white rounded-xl p-5 shadow-xs">
+                <div className="relative border-l-2 border-stone-border/60 ml-3 space-y-6 pb-2">
+                  
+                  {eliteState.roadmap.map((step) => (
+                    <div key={step.id} className="relative pl-6">
+                      <div className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 ${
+                        step.status === 'completed' ? 'bg-green-500 border-green-500' : 
+                        step.status === 'current' ? 'bg-amber-400 border-amber-400 animate-pulse' : 
+                        'bg-white border-stone-border'
+                      }`} />
+                      <p className="text-sm font-semibold text-foreground">{step.title}</p>
+                      <p className="text-xs text-slate-muted">{step.description}</p>
+                    </div>
+                  ))}
+
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Readiness Score Progress */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-slate-muted">Evidentiary Readiness</span>
-                <span className={isReady ? "text-emerald-700 font-bold" : "text-navy font-bold"}>
-                  {caseState?.readinessScore || 0}%
-                </span>
+          {/* Rights Navigator */}
+          {eliteState?.rights && (
+            <div className="space-y-3">
+              <h2 className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4" /> Rights Navigator
+              </h2>
+              <div className="border border-stone-border bg-blue-50/30 rounded-xl p-4 text-sm text-foreground space-y-4">
+                <div>
+                  <p className="font-semibold text-navy">{eliteState.rights.title}</p>
+                  <p className="text-xs text-slate-muted leading-relaxed mt-1">
+                    {eliteState.rights.description}
+                  </p>
+                </div>
+                
+                {eliteState.rights.actions && eliteState.rights.actions.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-navy uppercase mb-1">What you can do</p>
+                    <ul className="text-xs text-slate-700 space-y-1 pl-4 list-disc">
+                      {eliteState.rights.actions.map((act, i) => <li key={i}>{act}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {eliteState.rights.evidence && eliteState.rights.evidence.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-navy uppercase mb-1">Evidence to preserve</p>
+                    <div className="flex flex-wrap gap-2">
+                      {eliteState.rights.evidence.map((ev, i) => (
+                        <span key={i} className="text-[10px] bg-white border border-stone-border px-2 py-0.5 rounded-full text-slate-600">
+                          {ev}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {eliteState.rights.source && (
+                  <a href={eliteState.rights.source.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-navy hover:underline inline-flex items-center gap-1 pt-1">
+                    Source: {eliteState.rights.source.name} <ChevronRight className="h-3 w-3" />
+                  </a>
+                )}
               </div>
-              <div className="h-2 w-full bg-stone-border/40 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-500 ${isReady ? 'bg-emerald-600' : 'bg-navy'}`} 
-                  style={{ width: `${caseState?.readinessScore || 0}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-slate-muted">
-                Score measures information completeness for filing official statutory complaints.
-              </p>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Resolution Plan Timeline */}
-        <div className="space-y-2">
-          <h2 className="text-xs font-bold text-navy uppercase tracking-wider">Resolution Roadmap</h2>
-          <div className="border border-stone-border bg-paper rounded-lg p-4 shadow-xs">
-            <div className="relative border-l-2 border-stone-border/60 ml-3 space-y-4 pb-1 text-xs">
-              <div className="relative pl-5">
-                <div className={`absolute -left-[7px] top-1 h-3.5 w-3.5 rounded-full border-2 ${caseState ? 'bg-emerald-600 border-emerald-600' : 'bg-paper border-stone-border'}`} />
-                <p className="font-semibold text-navy">1. Fact Intake & Intent Extraction</p>
-                <p className="text-[11px] text-slate-muted">Classified under relevant Indian statutory act.</p>
-              </div>
-
-              <div className="relative pl-5">
-                <div className={`absolute -left-[7px] top-1 h-3.5 w-3.5 rounded-full border-2 ${isReady ? 'bg-emerald-600 border-emerald-600' : (caseState ? 'bg-amber-400 border-amber-400 animate-pulse' : 'bg-paper border-stone-border')}`} />
-                <p className="font-semibold text-navy">2. Evidence & Authority Identification</p>
-                <p className="text-[11px] text-slate-muted">Mapping to Public Authority / Grievance Portal.</p>
-              </div>
-
-              <div className="relative pl-5">
-                <div className={`absolute -left-[7px] top-1 h-3.5 w-3.5 rounded-full border-2 ${isReady ? 'bg-navy border-navy' : 'bg-paper border-stone-border'}`} />
-                <p className="font-semibold text-navy">3. Generate Notice / Section 6(1) RTI</p>
-                <p className="text-[11px] text-slate-muted">Formal legal demand notice or statutory filing.</p>
+          {/* Next Best Action CTA */}
+          {eliteState?.nextAction && (
+            <div className="space-y-3 pt-4">
+              <h2 className="text-xs font-bold text-navy uppercase tracking-wider">Next Best Action</h2>
+              <div className="border border-stone-border bg-white rounded-xl p-5 shadow-xs text-center space-y-4">
+                <p className="text-sm font-medium text-foreground">{eliteState.nextAction.title}</p>
+                <Button 
+                  className="w-full h-12 text-sm font-semibold flex items-center justify-center gap-2 shadow-md transition-all bg-navy hover:bg-navy-hover text-white"
+                  onClick={() => {
+                    if (eliteState.nextAction?.url) {
+                      window.open(eliteState.nextAction.url, "_blank");
+                    }
+                  }}
+                >
+                  {eliteState.nextAction.type === 'generate_document' ? <FileText className="h-4 w-4" /> : <ArrowRightCircle className="h-4 w-4" />}
+                  {eliteState.nextAction.type === 'generate_document' ? "Generate Document" : 
+                   eliteState.nextAction.type === 'open_portal' ? "Open Official Portal" : 
+                   "Take Action"}
+                </Button>
               </div>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Rights Navigator */}
-        <div className="space-y-2">
-          <h2 className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-1.5">
-            <AlertCircle className="h-4 w-4" /> Rights Navigator
-          </h2>
-          <div className="border border-stone-border bg-stone-border/20 rounded-lg p-4 text-xs text-foreground space-y-2">
-            <p className="font-bold text-navy">{schemaDetails?.rightsNavigator?.title || "Civic & Statutory Protections"}</p>
-            <p className="text-slate-muted leading-relaxed">
-              {schemaDetails?.rightsNavigator?.description || "Describe your dispute so we can cite the exact Indian laws, Supreme Court precedents, and time-bound statutory redressal mechanisms."}
-            </p>
-            {schemaDetails?.rightsNavigator?.sourceName && (
-              <a 
-                href={schemaDetails.rightsNavigator.sourceUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-[11px] font-semibold text-navy hover:underline inline-flex items-center gap-1 pt-1"
-              >
-                Official Portal: {schemaDetails.rightsNavigator.sourceName} <ChevronRight className="h-3 w-3" />
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Document Studio CTA */}
-        <div className="pt-2">
-          <Link href="/documents">
-            <Button 
-              className={`w-full h-11 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                isReady 
-                  ? 'bg-navy hover:bg-navy-hover text-paper' 
-                  : 'bg-stone-border/80 hover:bg-stone-border text-navy'
-              }`}
-            >
-              <FileText className="h-4 w-4" />
-              {isReady ? "Open Document Studio to Generate Draft" : "Draft Legal Notice in Document Studio"}
-            </Button>
-          </Link>
         </div>
       </div>
     </div>
